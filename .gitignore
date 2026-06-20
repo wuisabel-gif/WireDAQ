@@ -6,6 +6,11 @@ __pycache__/
 .venv/
 venv/
 
+# Packaging build artifacts
+build/
+dist/
+.eggs/
+
 # WireDAQ run artifacts (slice CSV logs, exported reports)
 out/
 

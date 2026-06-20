@@ -18,8 +18,8 @@ always identify a frame's version before parsing it.
 
 ## Context
 
-`protocol/packet_schema.yaml` already specifies a concrete format, and three codecs
-implement it identically (`protocol/codec/`, `protocol/golden/reference_encoder.py`,
+`src/wiredaq/protocol/packet_schema.yaml` already specifies a concrete format, and three codecs
+implement it identically (`src/wiredaq/protocol/codec/`, `src/wiredaq/protocol/golden/reference_encoder.py`,
 `firmware/codec/`), pinned by the golden vectors. What was missing is the *rationale* and
 the *evolution policy* — without them, each choice is an accident waiting to be
 relitigated, and there is no agreed rule for what happens when the format must change. ADR
@@ -121,7 +121,7 @@ versions.**
 
 ## Follow-on
 
-- Add a short version-policy note to `protocol/packet_schema.yaml` pointing here.
+- Add a short version-policy note to `src/wiredaq/protocol/packet_schema.yaml` pointing here.
 - Define the reserved control-plane payloads (`HEARTBEAT` / `DEVICE_INFO` / `CONFIG_ACK`)
   and add golden vectors for them, in a later ADR — they are the first exercise of the
   "grow by msg_type" path decided here.

@@ -12,22 +12,23 @@ Runnable two ways:
 
 import json
 import sys
+from importlib.resources import files
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from protocol.codec import (  # noqa: E402
+from wiredaq.protocol.codec import (  # noqa: E402
     crc16_ccitt_false,
     decode,
     decode_frame,
     encode_sample_block,
 )
 
-VECTORS_PATH = Path(__file__).resolve().parents[1] / "protocol" / "golden" / "vectors.json"
-
 
 def load_vectors():
-    return json.loads(VECTORS_PATH.read_text())["vectors"]
+    # Package-relative: works whether installed or run from a source checkout.
+    text = files("wiredaq.protocol.golden").joinpath("vectors.json").read_text()
+    return json.loads(text)["vectors"]
 
 
 def test_crc_check_value():

@@ -2,8 +2,8 @@
  * WireDAQ firmware codec — the C implementation of the wire format.
  *
  * This is the on-device counterpart to the Python production codec
- * (protocol/codec/wiredaq_codec.py). Both are built against
- * protocol/packet_schema.yaml and MUST reproduce protocol/golden/vectors.json
+ * (src/wiredaq/protocol/codec/wiredaq_codec.py). Both are built against
+ * src/wiredaq/protocol/packet_schema.yaml and MUST reproduce src/wiredaq/protocol/golden/vectors.json
  * byte-for-byte. That equivalence is the whole point: two independently written
  * codecs, in two languages, stay wire-compatible because the same committed
  * vectors gate both. See docs/adr/0001-wire-ready-architecture.md.
@@ -23,7 +23,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Constants mirrored from protocol/packet_schema.yaml. */
+/* Constants mirrored from src/wiredaq/protocol/packet_schema.yaml. */
 #define WD_MAGIC0 0x57u           /* 'W' */
 #define WD_MAGIC1 0x44u           /* 'D' */
 #define WD_VERSION 1u

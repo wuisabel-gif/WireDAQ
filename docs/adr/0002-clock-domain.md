@@ -17,7 +17,7 @@ below.
 
 ## Context
 
-The schema (`protocol/packet_schema.yaml`) carries timing as:
+The schema (`src/wiredaq/protocol/packet_schema.yaml`) carries timing as:
 
 - `t_node_us` — uint64, node-local microseconds at the **first sample** of the block, on
   the node's own free-running clock, explicitly *not* corrected to any global reference;
@@ -109,7 +109,7 @@ oracle), and `b` is the offset between the node's epoch and the reference epoch.
 
 ## Implementation notes (follow-on, not part of this decision)
 
-- Add a `ClockModel` (offset + skew, online robust fit) under `ground_station/`, held
+- Add a `ClockModel` (offset + skew, online robust fit) under `src/wiredaq/ground_station/`, held
   per node by the `Collector` or a dedicated timing component.
 - Test oracle: drive two `SyntheticNode`s with known, distinct `drift_ppm`; assert the
   fitted `m - 1` recovers each ppm within tolerance, and that loss/jitter widen the

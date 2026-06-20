@@ -3,7 +3,7 @@
 #   make test     regenerate golden_vectors.h from vectors.json, build, run
 #   make clean    remove build artifacts
 #
-# The golden header is generated from protocol/golden/vectors.json so the C codec
+# The golden header is generated from src/wiredaq/protocol/golden/vectors.json so the C codec
 # is held to the exact same vectors as the Python codec — the cross-language proof.
 
 CC      ?= cc
@@ -24,7 +24,7 @@ test: $(TEST_BIN)
 	@echo "--- running firmware conformance test ---"
 	@$(TEST_BIN)
 
-$(GEN_HDR): $(GEN) ../protocol/golden/vectors.json
+$(GEN_HDR): $(GEN) ../src/wiredaq/protocol/golden/vectors.json
 	$(PYTHON) $(GEN)
 
 $(TEST_BIN): $(TEST_DIR)/test_golden_vectors.c $(CODEC_DIR)/wiredaq_codec.c \

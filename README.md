@@ -50,8 +50,8 @@ only on the ports, so it is written once and never rewritten.
 
 Two things make it *wire-ready*:
 
-- `protocol/packet_schema.yaml` is the **single source of truth** for the wire format.
-- `protocol/golden/` holds **golden test vectors** — known samples paired with their exact
+- `src/wiredaq/protocol/packet_schema.yaml` is the **single source of truth** for the wire format.
+- `src/wiredaq/protocol/golden/` holds **golden test vectors** — known samples paired with their exact
   bytes — that every codec, in every language, must reproduce.
 
 ## The five phases
@@ -92,62 +92,53 @@ software-first system with a progressive path to hardware.
 
 ## Repository layout
 
+WireDAQ is a `pip`-installable Python package (`wiredaq`, src-layout) plus a C firmware
+codec and supporting docs/tools.
+
 ```text
 WireDAQ/
-  README.md                          this file
-  run_slice.py                          datagram first vertical slice    [present]
-  run_serial.py                         serial byte-stream slice         [present]
-  conftest.py                           import anchor for tests          [present]
-  docs/
-    adr/
-      0001-wire-ready-architecture.md   the architecture decision        [accepted]
-      0002-clock-domain.md              clock-domain decision            [proposed]
-      0003-wire-format-specifics.md     endianness/CRC/version policy    [proposed]
-    diagrams/
-      phase-pipeline.html               interactive 5-phase roadmap      [present]
-  protocol/
-    packet_schema.yaml                  the wire-format source of truth  [present]
-    packets.md                          prose spec of the format         [planned]
-    golden/
-      vectors.json                      golden test vectors              [present]
-      reference_encoder.py              test oracle / vector generator   [present]
-      README.md                         how the vectors are used         [present]
-    codec/
-      wiredaq_codec.py                  production encode/decode          [present]
-  tools/
-    daq_sim/
-      dashboard/
-        index.html                      capacity / what-if console       [present]
-        README.md                       maps the console to the model    [present]
-      core/interfaces.py                the ports                        [present]
+  pyproject.toml                        package metadata + console scripts [present]
+  README.md                             this file
+  conftest.py                           puts src/ on sys.path for tests    [present]
+  src/wiredaq/                          the importable package
+    protocol/                           the wire format
+      packet_schema.yaml                the wire-format source of truth    [present]
+      packets.md                        prose spec of the format           [planned]
+      codec/wiredaq_codec.py            production encode/decode           [present]
+      golden/
+        vectors.json                    golden test vectors                [present]
+        reference_encoder.py            test oracle / vector generator     [present]
+        README.md                       how the vectors are used           [present]
+    daq_sim/                            the simulator
+      core/interfaces.py                the ports                          [present]
       transports/
-        in_process.py                   loss-free in-process link        [present]
-        impairment_transport.py         datagram "honest fake" decorator [present]
-        serial_transport.py             byte-stream link + line noise    [present]
-        udp_transport.py                real loopback UDP sockets        [present]
+        in_process.py                   loss-free in-process link          [present]
+        impairment_transport.py         datagram "honest fake" decorator   [present]
+        serial_transport.py             byte-stream link + line noise      [present]
+        udp_transport.py                real loopback UDP sockets          [present]
       nodes/
-        synthetic_node.py               synthetic accelerometer node     [present]
-        replay_node.py                  replays a raw capture log        [present]
-      collector/collector.py            the collector                    [present]
-      sinks/
-        csv_logger.py                   CSV sample logger                [present]
-        metrics.py                      throughput metrics sink          [present]
-  ground_station/
-    receiver/frame_receiver.py          datagram receiver                [present]
-    receiver/stream_receiver.py         serial sync-word framing receiver[present]
-    logger/raw_logger.py                archival raw-frame logger        [present]
-    dashboard/console_dashboard.py      live terminal dashboard sink     [present]
-  firmware/
-    codec/wiredaq_codec.{h,c}           on-device C codec                [present]
-    test/test_golden_vectors.c          C-side golden-vector trip-wire   [present]
-    test/gen_golden_header.py           vectors.json → C header bridge   [present]
+        synthetic_node.py               synthetic accelerometer node       [present]
+        replay_node.py                  replays a raw capture log          [present]
+      collector/collector.py            the collector                      [present]
+      sinks/{csv_logger,metrics}.py     CSV + throughput sinks             [present]
+    ground_station/                     the (shared) ground-station tooling
+      receiver/frame_receiver.py        datagram receiver                  [present]
+      receiver/stream_receiver.py       serial sync-word framing receiver  [present]
+      logger/raw_logger.py              archival raw-frame logger          [present]
+      dashboard/console_dashboard.py    live terminal dashboard sink       [present]
+    cli/{slice,serial}.py               wiredaq-slice / wiredaq-serial     [present]
+  firmware/                             on-device C codec
+    codec/wiredaq_codec.{h,c}           the C codec                        [present]
+    test/test_golden_vectors.c          C-side golden-vector trip-wire     [present]
+    test/gen_golden_header.py           vectors.json → C header bridge     [present]
     Makefile                            build + run the C conformance test
-  tests/
-    test_golden_vectors.py              codec ↔ golden-vector trip-wire  [present]
-    test_pipeline.py                    datagram end-to-end seam tests   [present]
-    test_stream_receiver.py             serial framing / resync tests    [present]
-    test_udp_transport.py               real-socket transport tests      [present]
-    test_logger_replay.py               record/replay fidelity tests     [present]
+  tools/dashboard/index.html            capacity / what-if console (HTML)  [present]
+  docs/
+    adr/0001-wire-ready-architecture.md the architecture decision          [accepted]
+    adr/0002-clock-domain.md            clock-domain decision              [proposed]
+    adr/0003-wire-format-specifics.md   endianness/CRC/version policy      [proposed]
+    diagrams/phase-pipeline.html        interactive 5-phase roadmap        [present]
+  tests/                                pytest suite (18 checks)           [present]
 ```
 
 ## What's here now
@@ -155,15 +146,15 @@ WireDAQ/
 - **`docs/adr/0001-wire-ready-architecture.md`** — the foundational decision: ports and
   adapters, schema as source of truth, golden vectors as required tests, plus the build
   order and the first vertical slice.
-- **`protocol/packet_schema.yaml`** — the wire format: a packed 24-byte little-endian
+- **`src/wiredaq/protocol/packet_schema.yaml`** — the wire format: a packed 24-byte little-endian
   header (magic, version, msg type, node id, sequence, node-local timestamp, sample rate,
   channel/sample counts), `int16` samples, and a `CRC-16/CCITT-FALSE` trailer, capped at
   256 bytes. A reserved control-plane message family keeps configuration out of the
   high-rate sample stream.
-- **`protocol/golden/`** — four golden vectors generated by the reference encoder,
+- **`src/wiredaq/protocol/golden/`** — four golden vectors generated by the reference encoder,
   including two's-complement extremes and an empty block, each verified against the
   `0x29B1` CRC check value.
-- **`protocol/codec/wiredaq_codec.py`** — the production codec (encode + validating
+- **`src/wiredaq/protocol/codec/wiredaq_codec.py`** — the production codec (encode + validating
   decode) the simulator runs on. It reproduces every golden vector byte-for-byte;
   `tests/test_golden_vectors.py` is the trip-wire that fails if it ever drifts.
 - **`firmware/codec/wiredaq_codec.{h,c}`** — the on-device **C codec**, the third
@@ -171,7 +162,7 @@ WireDAQ/
   (`cd firmware && make test`), which is the cross-language byte-compatibility proof the
   whole architecture rests on: Python and C agree because the same committed vectors gate
   both. Its golden header is generated from `vectors.json`, so nothing is hand-transcribed.
-- **The runtime** — the ports (`tools/daq_sim/core/interfaces.py`) and their adapters:
+- **The runtime** — the ports (`src/wiredaq/daq_sim/core/interfaces.py`) and their adapters:
   `InProcessTransport` + the `ImpairmentTransport` honest fake and a real-socket
   `UdpTransport` (datagram), the `SerialTransport` byte-stream link with line noise; a
   `SyntheticNode` and a `ReplayNode`; the shared `FrameReceiver` and `StreamReceiver`; the
@@ -182,26 +173,34 @@ WireDAQ/
   bit-for-bit (a regression oracle, and a way to drive the tools from field data).
 - **Two interactive tools** (see below).
 
-## Run it
+## Install & run
 
-No build step, no dependencies — Python 3.10+ standard library only.
+Pure standard library — Python 3.10+, no runtime dependencies.
+
+```bash
+pip install -e .          # editable install; adds the wiredaq-slice / wiredaq-serial commands
+# (dev extras incl. pytest:  pip install -e ".[test]")
+```
 
 ```bash
 # the datagram slice: synthetic nodes → impairment transport → receiver
 #   → collector → CSV log + metrics summary
-python3 run_slice.py --nodes 3 --packets 150 --loss 0.05 --reorder 0.03 --seed 7
+wiredaq-slice --nodes 3 --packets 150 --loss 0.05 --reorder 0.03 --seed 7
 
 # the serial byte-stream slice: same collector/sinks, but the link is a raw byte
 #   stream with line noise; the StreamReceiver finds frames via the magic sync word
-python3 run_serial.py --nodes 2 --packets 200 --garbage 0.4 --corrupt 0.01 --seed 9
+wiredaq-serial --nodes 2 --packets 200 --garbage 0.4 --corrupt 0.01 --seed 9
 
 # over a real loopback UDP link, with the live dashboard and a raw capture for replay
-python3 run_slice.py --transport udp --raw-log out/capture.wdlog --dashboard
+wiredaq-slice --transport udp --raw-log out/capture.wdlog --dashboard
 
-# the contract trip-wire and the end-to-end seam tests (18 checks)
-python3 tests/test_golden_vectors.py
-python3 tests/test_pipeline.py
-# (or: pytest)
+# (without installing, the same entry points run as modules:)
+#   python -m wiredaq.cli.slice ... / python -m wiredaq.cli.serial ...
+```
+
+```bash
+# the test suite (18 checks) — the golden-vector trip-wire + the end-to-end seam tests
+pytest
 
 # the C firmware codec, held to the same golden vectors (cross-language proof)
 cd firmware && make test
@@ -218,7 +217,7 @@ Both are self-contained HTML — open them in any browser, no build step.
 
 - **`docs/diagrams/phase-pipeline.html`** — the *why*: step through the five phases and
   watch real hardware grow inward from both ends while the wire contract holds still.
-- **`tools/daq_sim/dashboard/index.html`** — the *how much*: a live console for capacity
+- **`tools/dashboard/index.html`** — the *how much*: a live console for capacity
   planning and what-if analysis, with finite buffers, modeled loss and jitter, independent
   per-node clocks, A/B comparison, and report export. Its packet-overhead math is wired to
   `packet_schema.yaml`, and it links back to the schema and vectors as the authority.
@@ -238,7 +237,7 @@ What exists across the hardware path, all in software, all behind the same ports
   with chunked reads and line noise. The Collector is identical across all three.
 - **Two receivers.** The datagram `FrameReceiver` and the `StreamReceiver`, which finds
   frame boundaries in a raw byte stream via the magic sync word, validates CRC, and
-  resyncs past garbage. Both satisfy one `Receiver` port (`run_serial.py` proves it).
+  resyncs past garbage. Both satisfy one `Receiver` port (`wiredaq-serial` proves it).
 - **The C firmware codec** (`firmware/`), held to the same golden vectors as the Python
   codec — the cross-language byte-compatibility proof, before any board is built.
 - **Record / replay.** `RawFrameLogger` + `ReplayNode` make any session reproducible.

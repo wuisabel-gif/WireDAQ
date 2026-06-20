@@ -13,14 +13,14 @@ bit-identical to what was sent — corruption is never silently accepted.
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from ground_station.receiver import StreamReceiver  # noqa: E402
-from protocol.codec import decode  # noqa: E402
-from tools.daq_sim.collector.collector import Collector  # noqa: E402
-from tools.daq_sim.nodes.synthetic_node import SyntheticNode  # noqa: E402
-from tools.daq_sim.sinks.metrics import MetricsSink  # noqa: E402
-from tools.daq_sim.transports.serial_transport import (  # noqa: E402
+from wiredaq.ground_station.receiver import StreamReceiver  # noqa: E402
+from wiredaq.protocol.codec import decode  # noqa: E402
+from wiredaq.daq_sim.collector.collector import Collector  # noqa: E402
+from wiredaq.daq_sim.nodes.synthetic_node import SyntheticNode  # noqa: E402
+from wiredaq.daq_sim.sinks.metrics import MetricsSink  # noqa: E402
+from wiredaq.daq_sim.transports.serial_transport import (  # noqa: E402
     LoopbackSerialTransport,
     NoisySerialTransport,
     SerialNoiseConfig,

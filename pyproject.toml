@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wiredaq"
+version = "0.1.0"
+description = "Wire-ready data-acquisition (DAQ) architecture simulator — design the architecture before you wire the hardware."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Isabel Wu", email = "231155141+wuisabel-gif@users.noreply.github.com" },
+]
+keywords = ["daq", "simulator", "ports-and-adapters", "wire-format", "telemetry"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+    "Intended Audience :: Developers",
+]
+dependencies = []  # standard library only
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+wiredaq-slice = "wiredaq.cli.slice:main"
+wiredaq-serial = "wiredaq.cli.serial:main"
+
+[project.urls]
+Homepage = "https://github.com/wuisabel-gif/WireDAQ"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# the wire-format source of truth + golden vectors ship with the package, so a codec or
+# test can find them via importlib.resources whether installed or run from a checkout.
+"wiredaq.protocol" = ["packet_schema.yaml"]
+"wiredaq.protocol.golden" = ["vectors.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

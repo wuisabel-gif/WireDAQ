@@ -10,8 +10,8 @@
 WireDAQ adopts a **ports-and-adapters (hexagonal) architecture** so that a synthetic
 node or a real board, an in-process queue or a real link, a stand-in receiver or the
 real ground station can each be swapped without rewriting the collector. The wire
-format defined in `protocol/packet_schema.yaml` is the single source of truth, and
-`protocol/golden/` holds the test vectors that keep the simulator and firmware
+format defined in `src/wiredaq/protocol/packet_schema.yaml` is the single source of truth, and
+`src/wiredaq/protocol/golden/` holds the test vectors that keep the simulator and firmware
 byte-compatible.
 
 ## Context
@@ -69,14 +69,14 @@ way. It depends only on ports, never on a concrete adapter.
 
 ### Source of truth
 
-`protocol/packet_schema.yaml` is the single source of truth for the wire format:
+`src/wiredaq/protocol/packet_schema.yaml` is the single source of truth for the wire format:
 header layout and field types, endianness, the sequence and timestamp fields, the CRC, a
 protocol **version byte**. Both the Python simulator codec and the C firmware codec are
 built against it. No component hand-rolls a competing definition.
 
 ### Required tests
 
-`protocol/golden/` holds **golden test vectors**: committed pairs of known samples →
+`src/wiredaq/protocol/golden/` holds **golden test vectors**: committed pairs of known samples →
 known serialized bytes. Both codec implementations must reproduce them exactly. These
 vectors are the enforcement mechanism — they are the reason two independently written
 codecs in two languages stay wire-compatible. CI fails if either codec diverges from
@@ -137,12 +137,12 @@ Both should be accepted before Phase 3.
 
 ## Implementation order
 
-1. `protocol/packet_schema.yaml` — define the header and one sample payload type.
-2. `protocol/golden/` — first known sample → bytes vectors for that type.
-3. `tools/daq_sim/core/interfaces.py` — the `SensorNode`, `Transport`, `Receiver`, `Sink` ports.
-4. `tools/daq_sim/transports/impairment_transport.py` — the honest-fake decorator over an in-process transport.
-5. `tools/daq_sim/nodes/synthetic_node.py` — a synthetic accelerometer node.
-6. `ground_station/receiver/` — the shared receiver, validated against the golden vectors.
+1. `src/wiredaq/protocol/packet_schema.yaml` — define the header and one sample payload type.
+2. `src/wiredaq/protocol/golden/` — first known sample → bytes vectors for that type.
+3. `src/wiredaq/daq_sim/core/interfaces.py` — the `SensorNode`, `Transport`, `Receiver`, `Sink` ports.
+4. `src/wiredaq/daq_sim/transports/impairment_transport.py` — the honest-fake decorator over an in-process transport.
+5. `src/wiredaq/daq_sim/nodes/synthetic_node.py` — a synthetic accelerometer node.
+6. `src/wiredaq/ground_station/receiver/` — the shared receiver, validated against the golden vectors.
 
 ## First vertical slice (proof of seam)
 

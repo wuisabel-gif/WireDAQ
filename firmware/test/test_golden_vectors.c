@@ -7,7 +7,7 @@
  * has drifted from the wire format — and this fails. Same vectors, same bytes as
  * tests/test_golden_vectors.py on the Python side.
  *
- * golden_vectors.h is generated from protocol/golden/vectors.json by
+ * golden_vectors.h is generated from src/wiredaq/protocol/golden/vectors.json by
  * gen_golden_header.py (the Makefile runs it first).
  */
 #include <stdio.h>

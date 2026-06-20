@@ -14,16 +14,16 @@ import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from ground_station.logger import RawFrameLogger, read_raw_log  # noqa: E402
-from ground_station.receiver import FrameReceiver  # noqa: E402
-from protocol.codec import decode  # noqa: E402
-from tools.daq_sim.collector.collector import Collector  # noqa: E402
-from tools.daq_sim.nodes.replay_node import ReplayNode  # noqa: E402
-from tools.daq_sim.nodes.synthetic_node import SyntheticNode  # noqa: E402
-from tools.daq_sim.sinks.metrics import MetricsSink  # noqa: E402
-from tools.daq_sim.transports.in_process import InProcessTransport  # noqa: E402
+from wiredaq.ground_station.logger import RawFrameLogger, read_raw_log  # noqa: E402
+from wiredaq.ground_station.receiver import FrameReceiver  # noqa: E402
+from wiredaq.protocol.codec import decode  # noqa: E402
+from wiredaq.daq_sim.collector.collector import Collector  # noqa: E402
+from wiredaq.daq_sim.nodes.replay_node import ReplayNode  # noqa: E402
+from wiredaq.daq_sim.nodes.synthetic_node import SyntheticNode  # noqa: E402
+from wiredaq.daq_sim.sinks.metrics import MetricsSink  # noqa: E402
+from wiredaq.daq_sim.transports.in_process import InProcessTransport  # noqa: E402
 
 
 def _capture(frames, path):

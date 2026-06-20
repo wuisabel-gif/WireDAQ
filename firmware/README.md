@@ -1,9 +1,9 @@
 # WireDAQ firmware codec (C)
 
 The on-device implementation of the wire format — the third codec, alongside the Python
-production codec (`protocol/codec/`) and the reference oracle (`protocol/golden/`). All
-three are built against `protocol/packet_schema.yaml` and **must reproduce
-`protocol/golden/vectors.json` byte-for-byte.** That shared constraint is what keeps two
+production codec (`src/wiredaq/protocol/codec/`) and the reference oracle (`src/wiredaq/protocol/golden/`). All
+three are built against `src/wiredaq/protocol/packet_schema.yaml` and **must reproduce
+`src/wiredaq/protocol/golden/vectors.json` byte-for-byte.** That shared constraint is what keeps two
 independently written codecs, in two languages, wire-compatible — by test, not by
 discipline. See `docs/adr/0001-wire-ready-architecture.md`.
 

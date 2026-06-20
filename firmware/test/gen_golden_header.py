@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-VECTORS = ROOT / "protocol" / "golden" / "vectors.json"
+VECTORS = ROOT / "src" / "wiredaq" / "protocol" / "golden" / "vectors.json"
 OUT = Path(__file__).resolve().parent / "golden_vectors.h"
 
 
