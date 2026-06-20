@@ -1,0 +1,102 @@
+{
+  "protocol": "wiredaq",
+  "version": 1,
+  "crc": "CRC-16/CCITT-FALSE",
+  "note": "frame_hex is the complete on-wire frame including magic and trailing CRC.",
+  "vectors": [
+    {
+      "name": "minimal_single_sample",
+      "description": "Smallest valid block: one channel, one sample.",
+      "input": {
+        "node_id": 1,
+        "seq": 0,
+        "t_node_us": 0,
+        "sample_rate_hz": 1000,
+        "channel_count": 1,
+        "samples": [
+          [
+            1000
+          ]
+        ]
+      },
+      "frame_len": 28,
+      "crc16": "0xA7B5",
+      "frame_hex": "574401010100000000000000000000000000e80300000101e803b5a7"
+    },
+    {
+      "name": "accel_xyz_block",
+      "description": "Typical 3-axis accelerometer block, 4 samples, gravity on Z.",
+      "input": {
+        "node_id": 7,
+        "seq": 42,
+        "t_node_us": 1234567890,
+        "sample_rate_hz": 3200,
+        "channel_count": 3,
+        "samples": [
+          [
+            10,
+            -20,
+            16384
+          ],
+          [
+            12,
+            -18,
+            16380
+          ],
+          [
+            -5,
+            0,
+            16390
+          ],
+          [
+            100,
+            200,
+            16000
+          ]
+        ]
+      },
+      "frame_len": 50,
+      "crc16": "0x2723",
+      "frame_hex": "5744010107002a000000d202964900000000800c000003040a00ecff00400c00eefffc3ffbff000006406400c800803e2327"
+    },
+    {
+      "name": "empty_sample_block",
+      "description": "Edge case: zero samples (header-only payload, CRC over header).",
+      "input": {
+        "node_id": 7,
+        "seq": 43,
+        "t_node_us": 1234890000,
+        "sample_rate_hz": 3200,
+        "channel_count": 3,
+        "samples": []
+      },
+      "frame_len": 26,
+      "crc16": "0xB11F",
+      "frame_hex": "5744010107002b00000010ed9a4900000000800c000003001fb1"
+    },
+    {
+      "name": "int16_extremes",
+      "description": "Two's-complement boundaries to catch signedness bugs.",
+      "input": {
+        "node_id": 255,
+        "seq": 4294967295,
+        "t_node_us": 18446744073709551615,
+        "sample_rate_hz": 48000,
+        "channel_count": 2,
+        "samples": [
+          [
+            -32768,
+            32767
+          ],
+          [
+            0,
+            -1
+          ]
+        ]
+      },
+      "frame_len": 34,
+      "crc16": "0x4D2D",
+      "frame_hex": "57440101ff00ffffffffffffffffffffffff80bb000002020080ff7f0000ffff2d4d"
+    }
+  ]
+}
