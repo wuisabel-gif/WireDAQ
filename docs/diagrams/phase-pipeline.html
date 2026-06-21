@@ -9,17 +9,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#0A0D10; --panel:#11161B; --rail:#0E1318; --card:#0e141a;
-    --line:#1F272E; --line-2:#2A343C;
-    --txt:#D7DEE4; --txt-dim:#7A8794; --txt-faint:#4E5860;
-    --amber:#F5A623; --cyan:#3FC9D6; --ok:#48D597;
+    --ink:#080d1a; --panel:#0f1730; --rail:#0b1124; --card:#0d1530;
+    --line:#1c2742; --line-2:#283655;
+    --txt:#dbe6f7; --txt-dim:#8fa3c4; --txt-faint:#566480;
+    --amber:#2f8bff; --cyan:#38d0ff; --ok:#48D597;
     --border-radius-md:8px;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
     min-height:100vh;
-    background:radial-gradient(1200px 600px at 80% -10%, #15202722, transparent), var(--ink);
+    background:radial-gradient(1200px 600px at 80% -10%, #16315e22, transparent), var(--ink);
     color:var(--txt); font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif; font-size:13px;
     -webkit-font-smoothing:antialiased; padding:26px 24px;
   }
@@ -31,9 +31,9 @@
   .sub{font-size:12.5px;color:var(--txt-dim);margin:0 0 20px;line-height:1.5}
 
   .pbtns{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 1.25rem}
-  .pbtn{font-family:"Chakra Petch";font-weight:600;font-size:11.5px;letter-spacing:.6px;padding:7px 11px;border:1px solid var(--line-2);border-radius:6px;background:#0c1115;color:var(--txt-dim);cursor:pointer;transition:.13s}
-  .pbtn:hover{border-color:#3a4750;background:#151c22;color:var(--txt)}
-  .pbtn.active{border-color:var(--amber);color:var(--amber);background:#1c1608}
+  .pbtn{font-family:"Chakra Petch";font-weight:600;font-size:11.5px;letter-spacing:.6px;padding:7px 11px;border:1px solid var(--line-2);border-radius:6px;background:#0a1226;color:var(--txt-dim);cursor:pointer;transition:.13s}
+  .pbtn:hover{border-color:#2f4a78;background:#151c22;color:var(--txt)}
+  .pbtn.active{border-color:var(--amber);color:var(--amber);background:#0c1a33}
 
   .pipe{display:flex;align-items:stretch;gap:5px;flex-wrap:nowrap}
   .card{flex:1 1 0;min-width:0;background:var(--card);border:1px solid var(--line-2);border-radius:9px;padding:11px 7px;transition:border-color .2s}
@@ -44,10 +44,10 @@
   .conn{flex:0 0 auto;display:flex;align-items:center;color:var(--txt-faint);font-size:14px}
 
   .cat-sim{border-color:#2a6e78}.cat-sim .dot{background:var(--cyan);box-shadow:0 0 7px var(--cyan)}.cat-sim .impl{color:#86d6df}
-  .cat-contract{border-color:#8a5e1c}.cat-contract .dot{background:var(--amber);box-shadow:0 0 7px var(--amber)}.cat-contract .impl{color:#e3ac56}
+  .cat-contract{border-color:#2a4f8c}.cat-contract .dot{background:var(--amber);box-shadow:0 0 7px var(--amber)}.cat-contract .impl{color:#6fb0ff}
   .cat-real{border-color:#356b32}.cat-real .dot{background:var(--ok);box-shadow:0 0 7px var(--ok)}.cat-real .impl{color:#83d7ad}
 
-  .band{margin-top:11px;border:1px solid #6a4a16;background:#19130a;border-radius:9px;padding:9px 13px;font-size:12px;color:#e3ac56;display:flex;align-items:center;gap:9px;line-height:1.45}
+  .band{margin-top:11px;border:1px solid #244a86;background:#08142b;border-radius:9px;padding:9px 13px;font-size:12px;color:#6fb0ff;display:flex;align-items:center;gap:9px;line-height:1.45}
   .band code{font-family:"IBM Plex Mono";font-size:11px;color:var(--amber)}
 
   .cap{margin-top:1.1rem;font-size:13.5px;line-height:1.65;color:var(--txt-dim)}
@@ -94,8 +94,8 @@
   <p class="cap" id="cap"></p>
 
   <div class="legend">
-    <span><span class="sw" style="background:#3FC9D6"></span>Simulated stand-in</span>
-    <span><span class="sw" style="background:#F5A623"></span>Shared wire-ready code</span>
+    <span><span class="sw" style="background:#38d0ff"></span>Simulated stand-in</span>
+    <span><span class="sw" style="background:#2f8bff"></span>Shared wire-ready code</span>
     <span><span class="sw" style="background:#48D597"></span>Real hardware</span>
   </div>
 
