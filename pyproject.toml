@@ -7,6 +7,8 @@ name = "wiredaq"
 version = "0.1.0"
 description = "Wire-ready data-acquisition (DAQ) architecture simulator — design the architecture before you wire the hardware."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
     { name = "Isabel Wu", email = "231155141+wuisabel-gif@users.noreply.github.com" },
