@@ -23,6 +23,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Constants mirrored from src/wiredaq/protocol/packet_schema.yaml. */
 #define WD_MAGIC0 0x57u           /* 'W' */
 #define WD_MAGIC1 0x44u           /* 'D' */
@@ -72,5 +76,9 @@ wd_status_t wd_encode_sample_block(const wd_packet_t *pkt,
 
 /* Decode and fully validate `frame` (`len` bytes) into `pkt`. */
 wd_status_t wd_decode_frame(const uint8_t *frame, size_t len, wd_packet_t *pkt);
+
+#ifdef __cplusplus
+}  /* extern "C" */
+#endif
 
 #endif /* WIREDAQ_CODEC_H */

@@ -171,6 +171,11 @@ WireDAQ/
     test/test_golden_vectors.c          C-side golden-vector trip-wire     [present]
     test/gen_golden_header.py           vectors.json → C header bridge     [present]
     Makefile                            build + run the C conformance test
+  CMakeLists.txt                        C/C++ library build + install      [present]
+  include/wiredaq/wiredaq.hpp           idiomatic C++17 wrapper            [present]
+  cpp/test/test_codec.cpp               C++ golden-vector trip-wire        [present]
+  examples/encode_decode.cpp            minimal C++ usage example          [present]
+  cmake/WireDAQConfig.cmake.in          find_package(WireDAQ) template     [present]
   tools/dashboard/index.html            capacity / what-if console (HTML)  [present]
   docs/
     adr/0001-wire-ready-architecture.md the architecture decision          [accepted]
@@ -249,6 +254,24 @@ The slice prints what the honest-fake link did (dropped / duplicated / reordered
 corrupted) next to what the receiver and collector independently observed — loss and
 reordering detected purely from the per-node sequence field, corruption caught by the
 CRC. Because the impairment RNG is seeded, every run is reproducible.
+
+### C / C++ library (CMake)
+
+The codec also ships as a `find_package`-able CMake library — the same C core as the
+firmware, with an idiomatic C++17 wrapper (`<wiredaq/wiredaq.hpp>`). See
+[`cpp/README.md`](cpp/README.md).
+
+```bash
+cmake -S . -B build && cmake --build build
+ctest --test-dir build --output-on-failure   # C++ golden-vector conformance
+cmake --install build --prefix /usr/local     # headers + lib + CMake package config
+```
+
+```cmake
+# in a consuming project
+find_package(WireDAQ CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE wiredaq::codec)   # then #include <wiredaq/wiredaq.hpp>
+```
 
 ## Interactive tools
 
