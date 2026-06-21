@@ -9,6 +9,39 @@ colliding at bring-up.
 
 ---
 
+## Quickstart — three ways to use it
+
+**1. Just look (no install).** Open the **[live demo](https://wuisabel-gif.github.io/WireDAQ/)**
+and click the two interactive tools — a capacity console and a phase roadmap. Nothing to install.
+
+**2. Run the simulator (one command).** It simulates sensors sending data over a lossy link
+and shows you what survives:
+
+```bash
+pip install -e .        # from a checkout (or: pip install wiredaq, once on PyPI)
+wiredaq-slice --nodes 2 --packets 80 --loss 0.05
+```
+
+You'll see how many packets the link dropped/corrupted, how many the receiver recovered, and
+the loss the collector detected **purely from the packet counter** — then it writes every
+sample to `out/slice_samples.csv` (open it in Excel/pandas). Variants:
+`wiredaq-serial` (noisy serial link), add `--dashboard` for a live view, `--help` for all options.
+
+**3. Use the codec in your own code (the library).** Turn sensor readings into wire bytes and
+back — identical bytes in Python, C, and C++:
+
+```python
+from wiredaq.protocol.codec import encode_sample_block, decode
+
+frame = encode_sample_block(node_id=7, seq=42, t_node_us=1_000_000, sample_rate_hz=3200,
+                            channel_count=3, samples=[[10, -20, 16384], [12, -18, 16380]])
+pkt = decode(frame)          # -> a Packet; pkt.samples == the original readings
+```
+
+New here? Start with #1 or #2. The rest of this README is the *why* and the architecture.
+
+---
+
 ## Motivation
 
 Building a distributed DAQ system means firmware, the transport link, and the
