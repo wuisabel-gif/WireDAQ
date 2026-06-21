@@ -324,3 +324,9 @@ Still ahead:
   types (the first exercise of ADR 0003's "grow by msg_type" path), the per-node
   `ClockModel` from ADR 0002, and `protocol/packets.md` as the prose companion to the
   schema.
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 Isabel Wu. SPDX-License-Identifier: `MIT`.
