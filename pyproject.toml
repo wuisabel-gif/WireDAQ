@@ -13,11 +13,25 @@ requires-python = ">=3.10"
 authors = [
     { name = "Isabel Wu", email = "231155141+wuisabel-gif@users.noreply.github.com" },
 ]
-keywords = ["daq", "simulator", "ports-and-adapters", "wire-format", "telemetry"]
+keywords = [
+    "daq", "data-acquisition", "simulator", "telemetry",
+    "avionics", "aerospace", "rocketry", "flight-software", "ground-station",
+    "wire-format", "packet", "codec", "crc", "golden-vectors",
+    "serial", "udp", "embedded", "firmware", "hardware-in-the-loop",
+    "ports-and-adapters", "hexagonal-architecture",
+]
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
+    "Topic :: System :: Hardware",
+    "Topic :: Software Development :: Embedded Systems",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
 ]
 dependencies = []  # standard library only
 
