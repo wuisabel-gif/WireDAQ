@@ -327,6 +327,48 @@ Still ahead:
 
 ---
 
+## Compatibility
+
+**Speaks the wire contract in three languages.** The format is the interop surface, and
+three codecs reproduce it byte-for-byte — pinned by the golden vectors, so a fourth-language
+codec only has to pass the same `vectors.json`:
+
+| | Standard | Notes |
+|---|---|---|
+| Python | 3.10+ | the `wiredaq` package; **zero runtime dependencies** (standard library only) |
+| C | C11 | firmware codec — no dynamic allocation, explicit little-endian |
+| C++ | C++17 | `wiredaq::codec` wrapper over the C core |
+
+**Installs / builds with the usual ecosystems.**
+
+- **pip / PyPI** — `pip install wiredaq` (per release), or `pip install -e .` from a checkout.
+- **CMake** — `find_package(WireDAQ)` → `wiredaq::codec`, or `FetchContent` / `add_subdirectory`.
+- **Make** — the firmware codec builds with a plain `Makefile`.
+
+**Runs on host and target.** macOS / Linux / Windows for the Python and C/C++ parts
+(standard library + BSD sockets). The C codec is freestanding-friendly and built to
+cross-compile for **ARM Cortex-M, RISC-V, AVR** (static buffers, endianness handled in
+code, so it's correct even on a big-endian target).
+
+**Link-agnostic.** The 256-byte cap fits small serial / UDP / RF MTUs. Working transports:
+in-process, **real UDP sockets** (any IP network), and a **serial byte-stream** model. New
+links (CAN, real UART, RF) drop in behind the `Transport` / `ByteStreamTransport` ports.
+
+**Standard data formats.** CSV sample logs (spreadsheet / pandas / MATLAB), a length-prefixed
+**raw binary capture** that replays bit-for-bit, a YAML schema, and JSON golden vectors.
+
+**Aligned with — but not wire-compatible with — existing systems.** The design borrows
+*ideas* from CCSDS space packets, MAVLink (conformance vectors), Kaitai Struct
+(schema-driven codecs), OpenC3 COSMOS (sim-swappable ground station), and openDAQ (device
+abstraction). It defines its **own** wire format (magic `WD`, CRC-16/CCITT-FALSE) and is
+**not** a drop-in for, nor on-the-wire compatible with, MAVLink / CCSDS / LoRaWAN / MQTT.
+
+**Out of scope / not compatible.** Not certified flight software (no DO-178C/DO-254); the
+C++ library is a separate CMake package (not in the Python wheel); the demo HTML tools are
+static front-ends (not wired to the live simulator); Python ≤ 3.9 is unsupported.
+
+---
+
 ## License
 
 [MIT](LICENSE) © 2026 Isabel Wu. SPDX-License-Identifier: `MIT`.
