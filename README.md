@@ -40,6 +40,45 @@ projects:
 
 ---
 
+## Why this matters for avionics
+
+Avionics is a **distributed data-acquisition problem under hostile constraints**: several
+sensor nodes feed a flight computer over noisy, bandwidth-limited links, which downlinks
+telemetry to a ground station and logs to an onboard recorder you read back after the
+flight. Three things make this harder than ordinary software, and the whole architecture is
+a response to them:
+
+- **You get one flight.** There is no pause button and no in-flight debugger; a wrong
+  assumption surfaces during a window you don't control. Every code path that matters —
+  packet loss, clock skew, framing, CRC rejection — has to be exercised *on the ground,
+  before flight*, which is exactly what the honest-fake simulator does.
+- **Flight hardware is late, scarce, and expensive.** Wire-ready lets the flight firmware
+  and the ground software develop in parallel against one contract instead of blocking on
+  boards and integrating in a big bang at the end.
+- **The flight environment is hostile.** Vibration, EMI, and lossy links corrupt and drop
+  data; distributed nodes run on independent clocks that drift. A simulator that never drops
+  a packet gives false confidence about precisely the conditions flight guarantees.
+
+How each piece maps onto a flight concern:
+
+| Avionics concern | What WireDAQ does |
+|---|---|
+| The packet format is an **interface contract (ICD)** between the flight MCU (C) and the ground software (Python) | One schema, plus **golden vectors** that three codecs — including the **C firmware codec** — must reproduce byte-for-byte. Codec drift is caught by a test, not discovered in recovered flight data you can't parse. (Same idea as CCSDS / MAVLink conformance.) |
+| Links **lose, reorder, and corrupt** data under vibration and EMI | `ImpairmentTransport` (loss/dup/reorder), `SerialTransport` line noise + sync-word framing, and a **CRC on every frame** so a single bit flip is rejected, never accepted as data. |
+| Telemetry is lossy; the **onboard log is ground truth** | `RawFrameLogger` archives exact wire bytes; `ReplayNode` plays a recovered capture back through the *same* pipeline — post-flight analysis and regression from real data. |
+| Flight events must be **time-correlated** across nodes whose clocks drift | [ADR 0002](docs/adr/0002-clock-domain.md): node-local time authoritative on the wire; the ground station reconstructs one timeline per node from a clock model. |
+| Validate before flight with **hardware-in-the-loop** | A real sensor board replaces a `SyntheticNode` behind the same port — HIL is a drop-in, and the ground station you flew is the one you tested. |
+| Runs on a **flight MCU** | 256-byte packet cap, fixed header, a C codec with **no dynamic allocation**, and **fail-closed** version handling ([ADR 0003](docs/adr/0003-wire-format-specifics.md)). |
+
+**Scope, honestly:** WireDAQ embodies avionics-grade *architecture and verification
+practice* (one enforced ICD, honest link modeling, time discipline, record/replay, HIL-ready
+seams) and is a development / integration / teaching harness — the cheap place to get the
+seams and the wire contract right before boards exist. It is **not** certified flight
+software: no DO-178C/DO-254 claim, and the C codec would need the usual qualification and
+target testing before it flies.
+
+---
+
 ## Core idea
 
 WireDAQ uses a **ports-and-adapters (hexagonal) architecture**. A small set of stable
