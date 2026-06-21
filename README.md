@@ -222,9 +222,14 @@ WireDAQ/
 Pure standard library — Python 3.10+, no runtime dependencies.
 
 ```bash
-pip install -e .          # editable install; adds the wiredaq-slice / wiredaq-serial commands
+pip install wiredaq       # from PyPI (per tagged release)
+
+pip install -e .          # from a checkout; editable, adds wiredaq-slice / wiredaq-serial
 # (dev extras incl. pytest:  pip install -e ".[test]")
 ```
+
+Releases are published to [PyPI](https://pypi.org/project/wiredaq/) automatically when a
+GitHub Release is tagged (`.github/workflows/publish.yml`, via Trusted Publishing).
 
 ```bash
 # the datagram slice: synthetic nodes → impairment transport → receiver
