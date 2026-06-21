@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p _site/dashboard
           cp site/index.html                      _site/index.html
-          cp site/logo.png                        _site/logo.png
+          cp site/logo.svg                        _site/logo.svg
           cp tools/dashboard/index.html           _site/dashboard/index.html
           cp docs/diagrams/phase-pipeline.html     _site/roadmap.html
           # don't let Pages run the output through Jekyll
