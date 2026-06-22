@@ -29,6 +29,7 @@ from wiredaq.ground_station.dashboard import ConsoleDashboardSink
 from wiredaq.ground_station.logger import RawFrameLogger
 from wiredaq.ground_station.receiver import FrameReceiver
 from wiredaq.daq_sim.collector.collector import Collector
+from wiredaq.daq_sim.core.clock import SimClock
 from wiredaq.daq_sim.nodes.synthetic_node import SyntheticNode
 from wiredaq.daq_sim.sinks.csv_logger import CsvLogger
 from wiredaq.daq_sim.sinks.metrics import MetricsSink
@@ -53,6 +54,7 @@ def build_nodes(args: argparse.Namespace) -> list:
                 # give each node a distinct clock drift so skew is visible
                 drift_ppm=args.drift_ppm * (n + 1),
                 seed=args.seed + n,
+                heartbeat_every=args.heartbeat_every,
             )
         )
     return nodes
@@ -80,6 +82,11 @@ def run(args: argparse.Namespace) -> Collector:
     nodes = build_nodes(args)
 
     link = UdpTransport() if args.transport == "udp" else InProcessTransport()
+    # A simulated clock drives the latency model deterministically: it advances one
+    # nominal block-duration per round of the send loop below, so a delay expressed in
+    # microseconds turns into a reproducible number of rounds of hold-back.
+    sim_clock = SimClock()
+    tick_us = max(1, round(args.block * 1_000_000 / args.rate))
     transport = ImpairmentTransport(
         link,
         ImpairmentConfig(
@@ -87,8 +94,11 @@ def run(args: argparse.Namespace) -> Collector:
             duplicate=args.duplicate,
             reorder=args.reorder,
             corrupt=args.corrupt,
+            delay_us=args.delay_us,
+            jitter_us=args.jitter_us,
         ),
         seed=args.seed,
+        clock=sim_clock,
     )
 
     receiver = FrameReceiver(transport)
@@ -110,7 +120,12 @@ def run(args: argparse.Namespace) -> Collector:
         dashboard = ConsoleDashboardSink(every=args.dashboard_every)
         sinks.append(dashboard)
 
-    collector = Collector(receiver, sinks)
+    collector = Collector(
+        receiver,
+        sinks,
+        clock=sim_clock,
+        stale_after_us=(args.stale_after_us or None),
+    )
 
     # Round-robin the nodes onto the shared link (their seqs interleave), draining as we
     # go so a real socket buffer never overflows.
@@ -124,6 +139,7 @@ def run(args: argparse.Namespace) -> Collector:
                 transport.send(frame)
                 still_active.append(gen)
         collector.run()
+        sim_clock.advance(tick_us)  # time passes → delayed frames become due
         active = still_active
     transport.flush()  # release any frame held back for reordering (keeps link open)
     _final_drain(collector, link, args.transport)
@@ -153,7 +169,8 @@ def print_summary(args: argparse.Namespace, collector: Collector) -> None:
     )
     print(
         f"link     loss={args.loss}  dup={args.duplicate}  "
-        f"reorder={args.reorder}  corrupt={args.corrupt}"
+        f"reorder={args.reorder}  corrupt={args.corrupt}  "
+        f"delay={args.delay_us}us  jitter={args.jitter_us}us"
     )
     print("-" * 66)
     print("transport (honest fake)")
@@ -161,6 +178,10 @@ def print_summary(args: argparse.Namespace, collector: Collector) -> None:
         f"  offered={imp.offered}  delivered={imp.delivered}  dropped={imp.dropped}  "
         f"duplicated={imp.duplicated}  reordered={imp.reordered}  corrupted={imp.corrupted}"
     )
+    if args.delay_us or args.jitter_us:
+        print(
+            f"  delayed={imp.delayed}  max_delay={imp.max_delay_us}us"
+        )
     print("receiver (shared w/ ground station)")
     print(
         f"  decoded={rcv.received}  crc_errors={rcv.crc_errors}  "
@@ -168,14 +189,19 @@ def print_summary(args: argparse.Namespace, collector: Collector) -> None:
     )
     print("-" * 66)
     print(f"collector  packets={stats.total_packets}  samples={stats.total_samples}")
-    header = f"  {'node':>4} {'pkts':>6} {'samples':>8} {'lost':>5} {'reord':>6} {'dup':>4} {'loss%':>7}"
+    header = (f"  {'node':>4} {'pkts':>6} {'samples':>8} {'lost':>5} {'reord':>6} "
+              f"{'dup':>4} {'hb':>4} {'loss%':>7}")
     print(header)
     for node_id in sorted(stats.nodes):
         ns = stats.nodes[node_id]
         print(
             f"  {ns.node_id:>4} {ns.packets:>6} {ns.samples:>8} {ns.lost:>5} "
-            f"{ns.reordered:>6} {ns.duplicated:>4} {ns.loss_pct:>6.1f}%"
+            f"{ns.reordered:>6} {ns.duplicated:>4} {ns.heartbeats:>4} {ns.loss_pct:>6.1f}%"
         )
+    if args.stale_after_us:
+        stale = collector.stale_nodes()
+        print(f"liveness  stale_after={args.stale_after_us}us  "
+              f"stale_nodes={stale if stale else 'none'}")
     if collector._csv is not None or collector._raw is not None:
         print("-" * 66)
     if collector._csv is not None:
@@ -199,6 +225,12 @@ def parse_args(argv=None) -> argparse.Namespace:
     p.add_argument("--duplicate", type=float, default=0.01, help="duplication probability")
     p.add_argument("--reorder", type=float, default=0.02, help="reorder probability")
     p.add_argument("--corrupt", type=float, default=0.01, help="corruption probability")
+    p.add_argument("--delay-us", type=int, default=0, help="baseline one-way link latency (us)")
+    p.add_argument("--jitter-us", type=int, default=0, help="+/- uniform jitter on the latency (us)")
+    p.add_argument("--heartbeat-every", type=int, default=0,
+                   help="emit a liveness beacon every N data blocks per node (0 = off)")
+    p.add_argument("--stale-after-us", type=int, default=0,
+                   help="flag a node stale if silent longer than this many us (0 = off)")
     p.add_argument("--drift-ppm", type=float, default=50.0, help="clock drift per node (ppm)")
     p.add_argument("--seed", type=int, default=1, help="RNG seed (reproducible runs)")
     p.add_argument(

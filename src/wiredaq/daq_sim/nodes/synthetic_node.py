@@ -22,7 +22,7 @@ import math
 import random
 from typing import Optional
 
-from wiredaq.protocol.codec import encode_sample_block
+from wiredaq.protocol.codec import encode_heartbeat, encode_sample_block
 from wiredaq.daq_sim.core.interfaces import SensorNode
 
 _INT16_MIN, _INT16_MAX = -32768, 32767
@@ -47,9 +47,12 @@ class SyntheticNode(SensorNode):
         drift_ppm: float = 0.0,
         noise_counts: int = 8,
         seed: int = 0,
+        heartbeat_every: int = 0,
     ) -> None:
         if channel_count < 1:
             raise ValueError("channel_count must be >= 1")
+        if heartbeat_every < 0:
+            raise ValueError("heartbeat_every must be >= 0 (0 disables beacons)")
         self.node_id = node_id
         self.sample_rate_hz = sample_rate_hz
         self.channel_count = channel_count
@@ -57,10 +60,12 @@ class SyntheticNode(SensorNode):
         self.max_packets = max_packets
         self.drift_ppm = drift_ppm
         self.noise_counts = noise_counts
+        self.heartbeat_every = heartbeat_every
 
         self._seq = start_seq & 0xFFFFFFFF
         self._t_node_us = t_start_us & 0xFFFFFFFFFFFFFFFF
         self._emitted = 0
+        self._blocks_since_hb = 0  # data blocks since the last heartbeat beacon
         self._sample_index = 0  # global sample counter, for signal phase continuity
         self._rng = random.Random(seed)
 
@@ -88,6 +93,20 @@ class SyntheticNode(SensorNode):
         if self.max_packets is not None and self._emitted >= self.max_packets:
             return None
 
+        # Emit a liveness beacon every `heartbeat_every` data blocks. It consumes a seq
+        # (so beacons share the data stream's gap detection) but carries no samples and
+        # does not count against the data-packet budget.
+        if self.heartbeat_every and self._blocks_since_hb >= self.heartbeat_every:
+            self._blocks_since_hb = 0
+            frame = encode_heartbeat(
+                node_id=self.node_id,
+                seq=self._seq,
+                t_node_us=self._t_node_us,
+                sample_rate_hz=self.sample_rate_hz,
+            )
+            self._seq = (self._seq + 1) & 0xFFFFFFFF
+            return frame
+
         samples = []
         for _ in range(self.samples_per_block):
             samples.append(self._sample(self._sample_index))
@@ -105,4 +124,5 @@ class SyntheticNode(SensorNode):
         self._seq = (self._seq + 1) & 0xFFFFFFFF
         self._t_node_us = (self._t_node_us + round(self._block_dt_us)) & 0xFFFFFFFFFFFFFFFF
         self._emitted += 1
+        self._blocks_since_hb += 1
         return frame
