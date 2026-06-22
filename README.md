@@ -1,5 +1,9 @@
 # WireDAQ
 
+[![PyPI version](https://img.shields.io/pypi/v/wiredaq.svg)](https://pypi.org/project/wiredaq/)
+[![Python versions](https://img.shields.io/pypi/pyversions/wiredaq.svg)](https://pypi.org/project/wiredaq/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **A wire-ready data-acquisition (DAQ) architecture simulator — design the architecture before you wire the hardware.**
 
 WireDAQ is a pre-hardware DAQ simulator and integration companion. It starts as pure
@@ -18,7 +22,7 @@ and click the two interactive tools — a capacity console and a phase roadmap. 
 and shows you what survives:
 
 ```bash
-pip install -e .        # from a checkout (or: pip install wiredaq, once on PyPI)
+pip install wiredaq     # from PyPI (or: pip install -e . from a checkout)
 wiredaq-slice --nodes 2 --packets 80 --loss 0.05
 ```
 
