@@ -1,0 +1,67 @@
+name: Tests
+
+# Runs the test suite (including the Hypothesis property tests) and verifies the
+# PyPI package still builds and passes twine's metadata check. This is the trip-wire
+# the "wire-ready" guarantee depends on: codec drift or a broken package fails the
+# build here, before a release ever reaches PyPI.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install (with test extras)
+        run: python -m pip install -e ".[test]"
+      - name: Run tests
+        run: python -m pytest -q
+
+  conformance:
+    # Cross-language wire-format conformance: the C firmware codec and the C++ codec must
+    # reproduce the SAME golden vectors the Python codec is held to. The golden header is
+    # regenerated from vectors.json on every run, so codec drift across languages fails
+    # the build — the trip-wire the whole "wire-ready" guarantee depends on.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: C codec conformance (make)
+        run: make -C firmware test
+      - name: C++ codec conformance (CTest)
+        run: |
+          cmake -S . -B build -DWIREDAQ_BUILD_TESTS=ON
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
+  package:
+    # Same build + check the publish workflow runs, but on every push — so packaging
+    # breakage surfaces here instead of when a release is being cut.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+      - name: Check metadata
+        run: python -m twine check dist/*

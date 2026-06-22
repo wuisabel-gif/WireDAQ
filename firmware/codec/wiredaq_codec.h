@@ -32,6 +32,7 @@ extern "C" {
 #define WD_MAGIC1 0x44u           /* 'D' */
 #define WD_VERSION 1u
 #define WD_MSG_SAMPLE_BLOCK 1u
+#define WD_MSG_HEARTBEAT 2u       /* control plane: node liveness / clock beacon */
 #define WD_HEADER_SIZE 24u
 #define WD_CRC_SIZE 2u
 #define WD_MAX_PACKET_BYTES 256u
@@ -50,9 +51,11 @@ typedef enum {
     WD_ERR_ARG = -4        /* NULL pointer or impossible field value            */
 } wd_status_t;
 
-/* A decoded SAMPLE_BLOCK, with samples stored flat in row-major order:
- * values[s * channel_count + c]. */
+/* A decoded packet, with samples stored flat in row-major order:
+ * values[s * channel_count + c]. For a HEARTBEAT, channel_count/sample_count are 0.
+ * `msg_type` is set by wd_decode_frame; the encoders pick the type themselves. */
 typedef struct {
+    uint8_t  msg_type;       /* WD_MSG_SAMPLE_BLOCK or WD_MSG_HEARTBEAT (set by decode) */
     uint16_t node_id;
     uint32_t seq;
     uint64_t t_node_us;
@@ -73,6 +76,12 @@ size_t wd_frame_length(uint8_t channel_count, uint8_t sample_count);
  * (magic + header + payload + CRC) and sets *out_len. */
 wd_status_t wd_encode_sample_block(const wd_packet_t *pkt,
                                    uint8_t *out, size_t out_cap, size_t *out_len);
+
+/* Encode a HEARTBEAT (liveness / clock beacon): the common 24-byte header with
+ * msg_type=HEARTBEAT and zero channels/samples, plus CRC. No payload. */
+wd_status_t wd_encode_heartbeat(uint16_t node_id, uint32_t seq, uint64_t t_node_us,
+                                uint32_t sample_rate_hz,
+                                uint8_t *out, size_t out_cap, size_t *out_len);
 
 /* Decode and fully validate `frame` (`len` bytes) into `pkt`. */
 wd_status_t wd_decode_frame(const uint8_t *frame, size_t len, wd_packet_t *pkt);

@@ -91,6 +91,34 @@ wd_status_t wd_encode_sample_block(const wd_packet_t *pkt,
     return WD_OK;
 }
 
+wd_status_t wd_encode_heartbeat(uint16_t node_id, uint32_t seq, uint64_t t_node_us,
+                                uint32_t sample_rate_hz,
+                                uint8_t *out, size_t out_cap, size_t *out_len)
+{
+    if (!out || !out_len) return WD_ERR_ARG;
+
+    size_t total = WD_HEADER_SIZE + WD_CRC_SIZE;  /* header-only payload */
+    if (total > out_cap) return WD_ERR_TOO_BIG;
+
+    uint8_t *p = out;
+    put_u8(p + 0, WD_MAGIC0);
+    put_u8(p + 1, WD_MAGIC1);
+    put_u8(p + 2, WD_VERSION);
+    put_u8(p + 3, WD_MSG_HEARTBEAT);
+    put_u16(p + 4, node_id);
+    put_u32(p + 6, seq);
+    put_u64(p + 10, t_node_us);
+    put_u32(p + 18, sample_rate_hz);
+    put_u8(p + 22, 0);  /* channel_count */
+    put_u8(p + 23, 0);  /* sample_count  */
+
+    uint16_t crc = wd_crc16_ccitt_false(out, total - WD_CRC_SIZE);
+    put_u16(out + total - WD_CRC_SIZE, crc);
+
+    *out_len = total;
+    return WD_OK;
+}
+
 wd_status_t wd_decode_frame(const uint8_t *frame, size_t len, wd_packet_t *pkt)
 {
     if (!frame || !pkt) return WD_ERR_ARG;
@@ -99,7 +127,8 @@ wd_status_t wd_decode_frame(const uint8_t *frame, size_t len, wd_packet_t *pkt)
 
     if (frame[0] != WD_MAGIC0 || frame[1] != WD_MAGIC1) return WD_ERR_FRAMING;
     if (frame[2] != WD_VERSION) return WD_ERR_FRAMING;
-    if (frame[3] != WD_MSG_SAMPLE_BLOCK) return WD_ERR_FRAMING;
+    if (frame[3] != WD_MSG_SAMPLE_BLOCK && frame[3] != WD_MSG_HEARTBEAT)
+        return WD_ERR_FRAMING;
 
     uint8_t channel_count = frame[22];
     uint8_t sample_count  = frame[23];
@@ -110,6 +139,7 @@ wd_status_t wd_decode_frame(const uint8_t *frame, size_t len, wd_packet_t *pkt)
     uint16_t computed = wd_crc16_ccitt_false(frame, len - WD_CRC_SIZE);
     if (found != computed) return WD_ERR_CRC;
 
+    pkt->msg_type       = frame[3];
     pkt->node_id        = get_u16(frame + 4);
     pkt->seq            = get_u32(frame + 6);
     pkt->t_node_us      = get_u64(frame + 10);

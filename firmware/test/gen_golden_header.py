@@ -17,6 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 VECTORS = ROOT / "src" / "wiredaq" / "protocol" / "golden" / "vectors.json"
 OUT = Path(__file__).resolve().parent / "golden_vectors.h"
 
+# Mirrors the msg_type enum in packet_schema.yaml.
+MSG_TYPE_CODE = {"SAMPLE_BLOCK": 1, "HEARTBEAT": 2}
+
 
 def c_array(name, ctype, values):
     if not values:
@@ -40,6 +43,7 @@ def main() -> int:
         "",
         "typedef struct {",
         "    const char *name;",
+        "    uint8_t  msg_type;",
         "    uint16_t node_id;",
         "    uint32_t seq;",
         "    uint64_t t_node_us;",
@@ -56,7 +60,7 @@ def main() -> int:
 
     for i, v in enumerate(vectors):
         inp = v["input"]
-        flat = [val for row in inp["samples"] for val in row]
+        flat = [val for row in inp.get("samples", []) for val in row]
         frame = bytes.fromhex(v["frame_hex"])
         lines.append(c_array(f"v{i}_values", "int16_t", flat))
         lines.append(c_array(f"v{i}_frame", "uint8_t", list(frame)))
@@ -65,14 +69,16 @@ def main() -> int:
     lines.append("static const golden_vector_t GOLDEN_VECTORS[] = {")
     for i, v in enumerate(vectors):
         inp = v["input"]
-        flat_len = sum(len(row) for row in inp["samples"])
+        samples = inp.get("samples", [])
+        flat_len = sum(len(row) for row in samples)
         t = inp["t_node_us"]
         lines.append(
-            "    {{ \"{name}\", {nid}u, {seq}u, {t}ull, {rate}u, {ch}u, {sc}u, "
+            "    {{ \"{name}\", {mt}u, {nid}u, {seq}u, {t}ull, {rate}u, {ch}u, {sc}u, "
             "v{i}_values, {nv}u, v{i}_frame, {fl}u }},".format(
-                name=v["name"], nid=inp["node_id"], seq=inp["seq"], t=t,
-                rate=inp["sample_rate_hz"], ch=inp["channel_count"],
-                sc=len(inp["samples"]), i=i, nv=flat_len, fl=len(frame_for(v)),
+                name=v["name"], mt=MSG_TYPE_CODE[v.get("msg_type", "SAMPLE_BLOCK")],
+                nid=inp["node_id"], seq=inp["seq"], t=t,
+                rate=inp["sample_rate_hz"], ch=inp.get("channel_count", 0),
+                sc=len(samples), i=i, nv=flat_len, fl=len(frame_for(v)),
             )
         )
     lines.append("};")

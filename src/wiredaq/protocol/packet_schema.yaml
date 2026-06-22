@@ -48,8 +48,8 @@ protocol:
 enums:
   msg_type:
     SAMPLE_BLOCK: 1           # data plane: a block of samples (defined below)
-    # --- control plane (reserved; see ADR note at end of file) ---
-    HEARTBEAT:    2           # reserved: node liveness / clock beacon
+    # --- control plane (see ADR note at end of file) ---
+    HEARTBEAT:    2           # node liveness / clock beacon: header-only, no payload
     DEVICE_INFO:  3           # reserved: node id, channel map, capabilities
     CONFIG_ACK:   4           # reserved: acknowledge a configuration change
 

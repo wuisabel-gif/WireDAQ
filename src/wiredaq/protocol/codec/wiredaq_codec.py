@@ -39,7 +39,13 @@ from typing import List
 MAGIC = b"\x57\x44"  # 'WD'
 VERSION = 1
 MSG_SAMPLE_BLOCK = 1
+MSG_HEARTBEAT = 2  # control plane: node liveness / clock beacon (header-only payload)
 MAX_PACKET_BYTES = 256
+
+# msg_types this codec will decode. SAMPLE_BLOCK is the data plane; HEARTBEAT is the first
+# control-plane message (see packet_schema.yaml). Both share the common 24-byte header, so
+# the receiver frames, CRC-checks, and routes by msg_type before knowing the payload shape.
+_DECODABLE_MSG_TYPES = (MSG_SAMPLE_BLOCK, MSG_HEARTBEAT)
 
 HEADER_FMT = "<2sBBHIQIBB"  # 24 bytes
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
@@ -102,6 +108,11 @@ class Packet:
     @property
     def sample_count(self) -> int:
         return len(self.samples)
+
+    @property
+    def is_heartbeat(self) -> bool:
+        """True if this is a control-plane HEARTBEAT (liveness beacon), not data."""
+        return self.msg_type == MSG_HEARTBEAT
 
     def to_input(self) -> dict:
         """Return the canonical golden-vector ``input`` dict for this packet."""
@@ -179,6 +190,46 @@ def encode_sample_block(
     return frame_wo_crc + struct.pack("<H", crc)
 
 
+def encode_heartbeat(
+    node_id: int,
+    seq: int,
+    t_node_us: int,
+    sample_rate_hz: int = 0,
+) -> bytes:
+    """Encode one HEARTBEAT frame: the common 24-byte header (msg_type=HEARTBEAT, zero
+    channels/samples) plus CRC, no payload.
+
+    A heartbeat is a node's liveness / clock beacon. It carries the node's identity, its
+    current per-node ``seq`` (so beacons share the data stream's gap detection), and its
+    local clock ``t_node_us`` — exactly the fields already in the shared header, which is
+    why the payload is empty. The receiver decodes it like any other frame and routes on
+    ``msg_type``.
+    """
+    if not (0 <= node_id <= 0xFFFF):
+        raise FramingError("node_id must fit in uint16")
+    if not (0 <= seq <= 0xFFFFFFFF):
+        raise FramingError("seq must fit in uint32")
+    if not (0 <= t_node_us <= 0xFFFFFFFFFFFFFFFF):
+        raise FramingError("t_node_us must fit in uint64")
+    if not (0 <= sample_rate_hz <= 0xFFFFFFFF):
+        raise FramingError("sample_rate_hz must fit in uint32")
+
+    header = struct.pack(
+        HEADER_FMT,
+        MAGIC,
+        VERSION,
+        MSG_HEARTBEAT,
+        node_id,
+        seq,
+        t_node_us,
+        sample_rate_hz,
+        0,  # channel_count
+        0,  # sample_count
+    )
+    crc = crc16_ccitt_false(header)
+    return header + struct.pack("<H", crc)
+
+
 def frame_length(channel_count: int, sample_count: int) -> int:
     """Total on-wire length for a block of the given shape (header + payload + CRC)."""
     return HEADER_SIZE + sample_count * channel_count * 2 + CRC_SIZE
@@ -205,7 +256,7 @@ def decode(frame: bytes) -> Packet:
         raise FramingError(f"bad magic: {magic!r}")
     if version != VERSION:
         raise FramingError(f"unsupported version: {version}")
-    if msg_type != MSG_SAMPLE_BLOCK:
+    if msg_type not in _DECODABLE_MSG_TYPES:
         raise FramingError(f"unsupported msg_type: {msg_type}")
 
     expected_len = frame_length(channel_count, sample_count)
