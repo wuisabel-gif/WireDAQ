@@ -18,11 +18,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from wiredaq.protocol.codec import (  # noqa: E402
+    MSG_HEARTBEAT,
     crc16_ccitt_false,
     decode,
     decode_frame,
+    encode_heartbeat,
     encode_sample_block,
 )
+
+_ENCODERS = {"SAMPLE_BLOCK": encode_sample_block, "HEARTBEAT": encode_heartbeat}
 
 
 def load_vectors():
@@ -39,7 +43,7 @@ def test_crc_check_value():
 def test_encode_matches_golden():
     for v in load_vectors():
         expected = bytes.fromhex(v["frame_hex"])
-        got = encode_sample_block(**v["input"])
+        got = _ENCODERS[v.get("msg_type", "SAMPLE_BLOCK")](**v["input"])
         assert got == expected, f"encode mismatch for {v['name']}"
         assert len(got) == v["frame_len"], f"frame_len mismatch for {v['name']}"
 
@@ -47,14 +51,22 @@ def test_encode_matches_golden():
 def test_decode_round_trips_golden():
     for v in load_vectors():
         frame = bytes.fromhex(v["frame_hex"])
-        assert decode_frame(frame) == v["input"], f"decode mismatch for {v['name']}"
+        if v.get("msg_type") == "HEARTBEAT":
+            pkt = decode(frame)
+            assert pkt.is_heartbeat and pkt.msg_type == MSG_HEARTBEAT, v["name"]
+            assert pkt.samples == [] and pkt.channel_count == 0, v["name"]
+            # the beacon's header fields must round-trip exactly
+            for k, want in v["input"].items():
+                assert getattr(pkt, k) == want, f"{v['name']}.{k}"
+        else:
+            assert decode_frame(frame) == v["input"], f"decode mismatch for {v['name']}"
 
 
 def test_decode_crc_field_matches():
     for v in load_vectors():
         frame = bytes.fromhex(v["frame_hex"])
         pkt = decode(frame)
-        assert pkt.sample_count == len(v["input"]["samples"])
+        assert pkt.sample_count == len(v["input"].get("samples", []))
         # CRC stated in the vector equals the CRC over the covered bytes.
         assert f"0x{crc16_ccitt_false(frame[:-2]):04X}" == v["crc16"], v["name"]
 

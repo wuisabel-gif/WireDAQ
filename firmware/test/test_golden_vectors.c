@@ -51,7 +51,10 @@ static void check_vector(const golden_vector_t *v)
 
     uint8_t out[WD_MAX_PACKET_BYTES];
     size_t out_len = 0;
-    wd_status_t st = wd_encode_sample_block(&pkt, out, sizeof out, &out_len);
+    wd_status_t st = (v->msg_type == WD_MSG_HEARTBEAT)
+        ? wd_encode_heartbeat(v->node_id, v->seq, v->t_node_us, v->sample_rate_hz,
+                              out, sizeof out, &out_len)
+        : wd_encode_sample_block(&pkt, out, sizeof out, &out_len);
 
     int ok = 1;
     if (st != WD_OK) {
@@ -73,7 +76,8 @@ static void check_vector(const golden_vector_t *v)
         printf("  FAIL %-24s decode returned %d\n", v->name, st);
         ok = 0;
     } else {
-        int fields_ok = dec.node_id == v->node_id
+        int fields_ok = dec.msg_type == v->msg_type
+            && dec.node_id == v->node_id
             && dec.seq == v->seq
             && dec.t_node_us == v->t_node_us
             && dec.sample_rate_hz == v->sample_rate_hz

@@ -51,6 +51,7 @@ public:
 /// A decoded SAMPLE_BLOCK. `samples` is flat, row-major: size == channel_count *
 /// sample_count, laid out [s0c0, s0c1, ..., s1c0, ...].
 struct Packet {
+    std::uint8_t msg_type = WD_MSG_SAMPLE_BLOCK;  ///< SAMPLE_BLOCK or HEARTBEAT
     std::uint16_t node_id = 0;
     std::uint32_t seq = 0;
     std::uint64_t t_node_us = 0;
@@ -62,8 +63,10 @@ struct Packet {
         return channel_count ? samples.size() / channel_count : 0;
     }
 
+    bool is_heartbeat() const { return msg_type == WD_MSG_HEARTBEAT; }
+
     friend bool operator==(const Packet& a, const Packet& b) {
-        return a.node_id == b.node_id && a.seq == b.seq
+        return a.msg_type == b.msg_type && a.node_id == b.node_id && a.seq == b.seq
             && a.t_node_us == b.t_node_us && a.sample_rate_hz == b.sample_rate_hz
             && a.channel_count == b.channel_count && a.samples == b.samples;
     }
@@ -89,6 +92,7 @@ inline void to_c(const Packet& p, wd_packet_t& c) {
 
 inline Packet from_c(const wd_packet_t& c) {
     Packet p;
+    p.msg_type = c.msg_type;
     p.node_id = c.node_id;
     p.seq = c.seq;
     p.t_node_us = c.t_node_us;
@@ -118,6 +122,19 @@ inline std::vector<std::uint8_t> encode(const Packet& pkt) {
     std::uint8_t buf[WD_MAX_PACKET_BYTES];
     std::size_t out_len = 0;
     const wd_status_t st = wd_encode_sample_block(&c, buf, sizeof buf, &out_len);
+    if (st != WD_OK) throw EncodeError(static_cast<Status>(st));
+    return std::vector<std::uint8_t>(buf, buf + out_len);
+}
+
+/// Encode a HEARTBEAT (liveness / clock beacon): header-only frame, no payload.
+/// Throws `EncodeError` if the frame can't be serialized.
+inline std::vector<std::uint8_t> encode_heartbeat(
+    std::uint16_t node_id, std::uint32_t seq, std::uint64_t t_node_us,
+    std::uint32_t sample_rate_hz = 0) {
+    std::uint8_t buf[WD_MAX_PACKET_BYTES];
+    std::size_t out_len = 0;
+    const wd_status_t st = wd_encode_heartbeat(
+        node_id, seq, t_node_us, sample_rate_hz, buf, sizeof buf, &out_len);
     if (st != WD_OK) throw EncodeError(static_cast<Status>(st));
     return std::vector<std::uint8_t>(buf, buf + out_len);
 }

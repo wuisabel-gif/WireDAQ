@@ -17,6 +17,7 @@ static int g_failures = 0;
 static void check_vector(const golden_vector_t& v) {
     // --- encode: fields -> bytes, must equal the golden frame exactly ---
     wiredaq::Packet pkt;
+    pkt.msg_type = v.msg_type;
     pkt.node_id = v.node_id;
     pkt.seq = v.seq;
     pkt.t_node_us = v.t_node_us;
@@ -26,7 +27,9 @@ static void check_vector(const golden_vector_t& v) {
 
     bool ok = true;
     try {
-        std::vector<std::uint8_t> out = wiredaq::encode(pkt);
+        std::vector<std::uint8_t> out = (v.msg_type == WD_MSG_HEARTBEAT)
+            ? wiredaq::encode_heartbeat(v.node_id, v.seq, v.t_node_us, v.sample_rate_hz)
+            : wiredaq::encode(pkt);
         std::vector<std::uint8_t> want(v.frame, v.frame + v.frame_len);
         if (out != want) {
             std::printf("  FAIL %-24s encode bytes differ\n", v.name);

@@ -34,6 +34,7 @@ from pathlib import Path
 MAGIC = b"\x57\x44"
 VERSION = 1
 MSG_SAMPLE_BLOCK = 1
+MSG_HEARTBEAT = 2
 MAX_PACKET_BYTES = 256
 HEADER_FMT = "<2sBBHIQIBB"  # 24 bytes
 HEADER_SIZE = struct.calcsize(HEADER_FMT)
@@ -94,6 +95,33 @@ def encode_sample_block(
     return frame_wo_crc + struct.pack("<H", crc)
 
 
+def encode_heartbeat(
+    node_id: int,
+    seq: int,
+    t_node_us: int,
+    sample_rate_hz: int = 0,
+) -> bytes:
+    """Encode one HEARTBEAT frame: the common header (msg_type=HEARTBEAT, zero
+    channels/samples) plus CRC, no payload."""
+    header = struct.pack(
+        HEADER_FMT,
+        MAGIC,
+        VERSION,
+        MSG_HEARTBEAT,
+        node_id,
+        seq,
+        t_node_us,
+        sample_rate_hz,
+        0,  # channel_count
+        0,  # sample_count
+    )
+    crc = crc16_ccitt_false(header)
+    return header + struct.pack("<H", crc)
+
+
+# Each vector names its msg_type (default SAMPLE_BLOCK) and its encoder's kwargs.
+_ENCODERS = {"SAMPLE_BLOCK": encode_sample_block, "HEARTBEAT": encode_heartbeat}
+
 VECTORS = [
     {
         "name": "minimal_single_sample",
@@ -122,17 +150,32 @@ VECTORS = [
                        sample_rate_hz=48000, channel_count=2,
                        samples=[[-32768, 32767], [0, -1]]),
     },
+    {
+        "name": "heartbeat_basic",
+        "description": "A liveness/clock beacon (HEARTBEAT): header-only, no payload.",
+        "msg_type": "HEARTBEAT",
+        "fields": dict(node_id=7, seq=42, t_node_us=1234567890, sample_rate_hz=3200),
+    },
+    {
+        "name": "heartbeat_extremes",
+        "description": "HEARTBEAT at field boundaries (max node_id/seq/t_node_us).",
+        "msg_type": "HEARTBEAT",
+        "fields": dict(node_id=65535, seq=4294967295, t_node_us=18446744073709551615,
+                       sample_rate_hz=0),
+    },
 ]
 
 
 def build_vectors() -> dict:
     out = []
     for v in VECTORS:
-        frame = encode_sample_block(**v["fields"])
+        msg_type = v.get("msg_type", "SAMPLE_BLOCK")
+        frame = _ENCODERS[msg_type](**v["fields"])
         crc = crc16_ccitt_false(frame[:-2])
         out.append({
             "name": v["name"],
             "description": v["description"],
+            "msg_type": msg_type,
             "input": v["fields"],
             "frame_len": len(frame),
             "crc16": f"0x{crc:04X}",

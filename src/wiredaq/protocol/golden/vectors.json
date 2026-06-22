@@ -7,6 +7,7 @@
     {
       "name": "minimal_single_sample",
       "description": "Smallest valid block: one channel, one sample.",
+      "msg_type": "SAMPLE_BLOCK",
       "input": {
         "node_id": 1,
         "seq": 0,
@@ -26,6 +27,7 @@
     {
       "name": "accel_xyz_block",
       "description": "Typical 3-axis accelerometer block, 4 samples, gravity on Z.",
+      "msg_type": "SAMPLE_BLOCK",
       "input": {
         "node_id": 7,
         "seq": 42,
@@ -62,6 +64,7 @@
     {
       "name": "empty_sample_block",
       "description": "Edge case: zero samples (header-only payload, CRC over header).",
+      "msg_type": "SAMPLE_BLOCK",
       "input": {
         "node_id": 7,
         "seq": 43,
@@ -77,6 +80,7 @@
     {
       "name": "int16_extremes",
       "description": "Two's-complement boundaries to catch signedness bugs.",
+      "msg_type": "SAMPLE_BLOCK",
       "input": {
         "node_id": 255,
         "seq": 4294967295,
@@ -97,6 +101,34 @@
       "frame_len": 34,
       "crc16": "0x4D2D",
       "frame_hex": "57440101ff00ffffffffffffffffffffffff80bb000002020080ff7f0000ffff2d4d"
+    },
+    {
+      "name": "heartbeat_basic",
+      "description": "A liveness/clock beacon (HEARTBEAT): header-only, no payload.",
+      "msg_type": "HEARTBEAT",
+      "input": {
+        "node_id": 7,
+        "seq": 42,
+        "t_node_us": 1234567890,
+        "sample_rate_hz": 3200
+      },
+      "frame_len": 26,
+      "crc16": "0xE573",
+      "frame_hex": "5744010207002a000000d202964900000000800c0000000073e5"
+    },
+    {
+      "name": "heartbeat_extremes",
+      "description": "HEARTBEAT at field boundaries (max node_id/seq/t_node_us).",
+      "msg_type": "HEARTBEAT",
+      "input": {
+        "node_id": 65535,
+        "seq": 4294967295,
+        "t_node_us": 18446744073709551615,
+        "sample_rate_hz": 0
+      },
+      "frame_len": 26,
+      "crc16": "0x8CF0",
+      "frame_hex": "57440102ffffffffffffffffffffffffffff000000000000f08c"
     }
   ]
 }
