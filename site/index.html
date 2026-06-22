@@ -60,6 +60,20 @@
   a.link{color:var(--blue); text-decoration:none}
   a.link:hover{text-decoration:underline}
   code{font-family:"IBM Plex Mono",monospace; background:#0a1226; border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:12.5px; color:#cfe0ff}
+  .release{background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line); border-radius:16px; padding:24px 26px; margin:34px 0}
+  .release h2{margin:10px 0 4px; font-size:20px; font-family:"Chakra Petch",sans-serif;
+    font-weight:600; letter-spacing:.3px}
+  .rel-sub{margin:0 0 14px; color:var(--muted); font-size:14px}
+  .rel-list{margin:0; padding-left:18px; color:var(--muted); font-size:14px}
+  .rel-list li{margin:7px 0}
+  .rel-list strong{color:var(--ink)}
+  .rel-link{display:inline-block; margin-top:16px; color:var(--blue); font-weight:600;
+    font-size:14px; text-decoration:none}
+  .rel-link:hover{text-decoration:underline}
+  .pill{display:inline-block; font-family:"Chakra Petch",sans-serif; font-weight:700;
+    font-size:11px; letter-spacing:.12em; color:#08101e; background:var(--cyan);
+    border-radius:6px; padding:3px 9px; margin-left:8px; vertical-align:middle}
 </style>
 </head>
 <body>
@@ -105,9 +119,23 @@
     <div class="feat"><h3>Ports &amp; adapters</h3><p>A real sensor board drops in behind the same port; advancing a phase is a wiring change, not a rewrite.</p></div>
   </section>
 
+  <section class="release">
+    <span class="badge">latest release</span><span class="pill">v0.2.0</span>
+    <h2>Now on PyPI</h2>
+    <p class="rel-sub">Install with <code>pip install wiredaq</code> — no checkout needed.</p>
+    <ul class="rel-list">
+      <li><strong>Controllable clock</strong> (SimClock / WallClock) — deterministic, reproducible timing across the simulator.</li>
+      <li><strong>Link latency + jitter</strong> in the honest-fake transport; jitter alone produces realistic packet reordering.</li>
+      <li><strong>HEARTBEAT beacons</strong> — a liveness / clock message in all three codecs, with node-stale detection in the collector.</li>
+      <li><strong>Continuous integration</strong> — tests on Python 3.10–3.12 plus cross-language codec conformance on every push.</li>
+    </ul>
+    <a class="rel-link" href="https://github.com/wuisabel-gif/WireDAQ/releases/tag/v0.2.0">Full release notes →</a>
+  </section>
+
   <footer>
-    Source &amp; docs on <a class="link" href="https://github.com/wuisabel-gif/WireDAQ">GitHub</a>.
-    &nbsp;·&nbsp; Run the simulator: <code>pip install -e .</code> then <code>wiredaq-slice</code>.
+    Source &amp; docs on <a class="link" href="https://github.com/wuisabel-gif/WireDAQ">GitHub</a>
+    &nbsp;·&nbsp; on <a class="link" href="https://pypi.org/project/wiredaq/">PyPI</a>.
+    &nbsp;·&nbsp; Run the simulator: <code>pip install wiredaq</code> then <code>wiredaq-slice</code>.
   </footer>
 </div>
 </body>
