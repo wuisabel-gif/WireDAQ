@@ -11,6 +11,9 @@ build/
 dist/
 .eggs/
 
+# Rust
+target/
+
 # WireDAQ run artifacts (slice CSV logs, exported reports)
 out/
 

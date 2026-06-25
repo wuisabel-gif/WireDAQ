@@ -9,7 +9,8 @@
 WireDAQ is a pre-hardware DAQ simulator and integration companion. It starts as pure
 software and progressively connects to real hardware and firmware as they mature, so the
 software architecture and the firmware co-develop against one shared contract instead of
-colliding at bring-up.
+colliding at bring-up. The core package is Python, the firmware-facing codec is C/C++,
+and the experimental high-rate backend is Rust with Lua scenario files.
 
 ---
 
@@ -43,6 +44,15 @@ pkt = decode(frame)          # -> a Packet; pkt.samples == the original readings
 ```
 
 New here? Start with #1 or #2. The rest of this README is the *why* and the architecture.
+
+**4. Try the Rust/Lua experimental backend.** The Rust crate mirrors the same packet
+contract, checks itself against committed golden frames, and can run Lua-defined DAQ
+scenarios such as a MicroDAQ 10 kHz raw stream:
+
+```bash
+cargo test -p wiredaq-rs
+cargo run -p wiredaq-rs --bin wiredaq-sim -- scenarios/microdaq_10khz.lua
+```
 
 ---
 
@@ -124,11 +134,13 @@ ports — `SensorNode`, `Transport`, `Receiver`, `Sink` — each has interchange
 queue stands in for a real UDP or serial link behind `Transport`). The `Collector` depends
 only on the ports, so it is written once and never rewritten.
 
-Two things make it *wire-ready*:
+Three things make it *wire-ready*:
 
 - `src/wiredaq/protocol/packet_schema.yaml` is the **single source of truth** for the wire format.
 - `src/wiredaq/protocol/golden/` holds **golden test vectors** — known samples paired with their exact
   bytes — that every codec, in every language, must reproduce.
+- `scenarios/*.lua` describes high-rate DAQ experiments that the Rust backend can run without
+  changing the packet contract.
 
 ## The five phases
 
@@ -169,7 +181,7 @@ software-first system with a progressive path to hardware.
 ## Repository layout
 
 WireDAQ is a `pip`-installable Python package (`wiredaq`, src-layout) plus a C firmware
-codec and supporting docs/tools.
+codec, C++ wrapper, Rust/Lua experimental backend, and supporting docs/tools.
 
 ```text
 WireDAQ/
@@ -208,7 +220,14 @@ WireDAQ/
     test/test_golden_vectors.c          C-side golden-vector trip-wire     [present]
     test/gen_golden_header.py           vectors.json → C header bridge     [present]
     Makefile                            build + run the C conformance test
+  crates/
+    wiredaq-rs/                         Rust/Lua experimental backend      [present]
+      src/bin/wiredaq-sim.rs            Lua scenario runner                [present]
+  scenarios/
+    microdaq_10khz.lua                  Lua scenario for raw MicroDAQ      [present]
+    static_fire_faults.lua              Lua fault-injection scenario       [present]
   CMakeLists.txt                        C/C++ library build + install      [present]
+  Cargo.toml                            Rust workspace                     [present]
   include/wiredaq/wiredaq.hpp           idiomatic C++17 wrapper            [present]
   cpp/test/test_codec.cpp               C++ golden-vector trip-wire        [present]
   examples/encode_decode.cpp            minimal C++ usage example          [present]
@@ -218,6 +237,7 @@ WireDAQ/
     adr/0001-wire-ready-architecture.md the architecture decision          [accepted]
     adr/0002-clock-domain.md            clock-domain decision              [proposed]
     adr/0003-wire-format-specifics.md   endianness/CRC/version policy      [proposed]
+    adr/0004-rust-lua-backend.md        Rust/Lua backend decision          [proposed]
     diagrams/phase-pipeline.html        interactive 5-phase roadmap        [present]
   tests/                                pytest suite (18 checks)           [present]
 ```
@@ -243,6 +263,13 @@ WireDAQ/
   (`cd firmware && make test`), which is the cross-language byte-compatibility proof the
   whole architecture rests on: Python and C agree because the same committed vectors gate
   both. Its golden header is generated from `vectors.json`, so nothing is hand-transcribed.
+- **`crates/wiredaq-rs/`** — the Rust experimental backend. It mirrors the same frame
+  format, validates CRC behavior, reproduces representative golden frames, and includes
+  `wiredaq-sim`, a small runner that loads Lua scenario files and reports packet count,
+  sample count, encoded bytes, frame size, and expected loss.
+- **`scenarios/*.lua`** — editable high-rate DAQ scenarios. The first two model a MicroDAQ
+  10 kHz raw stream and a static-fire fault-injection case, giving the Rust backend a
+  concrete way to test packet sizing and receiver-side raw streaming assumptions.
 - **The runtime** — the ports (`src/wiredaq/daq_sim/core/interfaces.py`) and their adapters:
   `InProcessTransport` + the `ImpairmentTransport` honest fake and a real-socket
   `UdpTransport` (datagram), the `SerialTransport` byte-stream link with line noise; a
