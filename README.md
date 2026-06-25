@@ -10,7 +10,9 @@ WireDAQ is a pre-hardware DAQ simulator and integration companion. It starts as 
 software and progressively connects to real hardware and firmware as they mature, so the
 software architecture and the firmware co-develop against one shared contract instead of
 colliding at bring-up. The core package is Python, the firmware-facing codec is C/C++,
-and the experimental high-rate backend is Rust with Lua scenario files.
+and the experimental high-rate backend is Rust with Lua scenario files. Its companion
+diagnostic tool, [WireDAQ Health](https://github.com/wuisabel-gif/Wiredaq-health), is a
+small Nim CLI for checking captured or live WireDAQ telemetry streams.
 
 ---
 
@@ -52,6 +54,15 @@ scenarios such as a MicroDAQ 10 kHz raw stream:
 ```bash
 cargo test -p wiredaq-rs
 cargo run -p wiredaq-rs --bin wiredaq-sim -- scenarios/microdaq_10khz.lua
+```
+
+**5. Check a captured stream with WireDAQ Health.** The companion
+[WireDAQ Health](https://github.com/wuisabel-gif/Wiredaq-health) repo provides a Nim CLI
+that validates frames, CRCs, sequence gaps, reordering, timestamps, and per-node stream
+health:
+
+```bash
+wiredaq_health --raw-log out/capture.wdlog
 ```
 
 ---
@@ -170,6 +181,10 @@ Each phase is a change in which adapters are wired together, not a rewrite:
   link budget or a buffer.
 - **Compatibility by construction.** Cross-language byte-compatibility is guaranteed by
   tests rather than by discipline.
+- **Independent diagnostics.** The companion
+  [WireDAQ Health](https://github.com/wuisabel-gif/Wiredaq-health) CLI can inspect raw
+  captures or streams without running the full simulator, which makes quick telemetry
+  triage easier during bring-up.
 
 The approach is the deliberate intersection of three established ideas — a
 sim-swappable ground station (as in OpenC3 COSMOS), a DAQ device abstraction (as in
@@ -270,6 +285,10 @@ WireDAQ/
 - **`scenarios/*.lua`** — editable high-rate DAQ scenarios. The first two model a MicroDAQ
   10 kHz raw stream and a static-fire fault-injection case, giving the Rust backend a
   concrete way to test packet sizing and receiver-side raw streaming assumptions.
+- **[WireDAQ Health](https://github.com/wuisabel-gif/Wiredaq-health)** — a separate Nim
+  companion repo for stream diagnostics. It consumes this repo's wire format and reports
+  CRC failures, framing errors, dropped/reordered packets, timestamp issues, packet size,
+  and per-node sample counts.
 - **The runtime** — the ports (`src/wiredaq/daq_sim/core/interfaces.py`) and their adapters:
   `InProcessTransport` + the `ImpairmentTransport` honest fake and a real-socket
   `UdpTransport` (datagram), the `SerialTransport` byte-stream link with line noise; a
