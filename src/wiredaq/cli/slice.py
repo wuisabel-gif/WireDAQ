@@ -103,29 +103,29 @@ def run(args: argparse.Namespace) -> Collector:
 
     receiver = FrameReceiver(transport)
     metrics = MetricsSink()
-    sinks = [metrics]
+    collector = Collector(
+        receiver,
+        [metrics],
+        clock=sim_clock,
+        stale_after_us=(args.stale_after_us or None),
+    )
 
+    # CSV gets the per-node clock fit (ADR 0002) so it can write a reconstructed t_ref_us
+    # column alongside each node's raw timestamp — the column you sort on to align nodes.
     csv_logger = None
     if args.csv:
-        csv_logger = CsvLogger(args.csv, max_channels=args.channels)
-        sinks.append(csv_logger)
+        csv_logger = CsvLogger(args.csv, max_channels=args.channels, clock_lookup=collector.clock_of)
+        collector.sinks.append(csv_logger)
 
     raw_logger = None
     if args.raw_log:
         raw_logger = RawFrameLogger(args.raw_log)
-        sinks.append(raw_logger)
+        collector.sinks.append(raw_logger)
 
     dashboard = None
     if args.dashboard:
         dashboard = ConsoleDashboardSink(every=args.dashboard_every)
-        sinks.append(dashboard)
-
-    collector = Collector(
-        receiver,
-        sinks,
-        clock=sim_clock,
-        stale_after_us=(args.stale_after_us or None),
-    )
+        collector.sinks.append(dashboard)
 
     # Round-robin the nodes onto the shared link (their seqs interleave), draining as we
     # go so a real socket buffer never overflows.

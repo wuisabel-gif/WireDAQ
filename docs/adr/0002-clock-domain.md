@@ -124,9 +124,9 @@ us a built-in test oracle. `offset` places the node's epoch against the referenc
 - `wiredaq-clocksync` (`src/wiredaq/cli/clocksync.py`) demos it: nodes whose raw clocks
   differ by ~1200 µs are reconstructed onto one reference timeline within 0 µs (clean) /
   tens of µs (jittered), with recovered-vs-injected ppm printed per node.
+- The derived `t_ref_us` is surfaced per sample: `CsvLogger` writes it as a column (blank
+  until the node's model converges), so drifted nodes align on one timeline in the export.
 
 ## Still deferred
 
-- Surfacing the derived `t_ref_us` per sample in the CSV/other sinks (the model is computed
-  and available on `NodeStats.clock`; the sink columns are not wired yet).
 - Robust (outlier-rejecting) fit, and absolute-time discipline — see Non-goals above.

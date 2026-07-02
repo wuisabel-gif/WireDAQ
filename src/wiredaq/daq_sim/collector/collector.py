@@ -142,6 +142,11 @@ class Collector:
             self.process(packet)
         return self.stats
 
+    def clock_of(self, node_id: int) -> Optional[ClockModel]:
+        """This node's clock fit (ADR 0002), or ``None`` if unseen / no clock configured."""
+        ns = self.stats.nodes.get(node_id)
+        return ns.clock if ns is not None else None
+
     def stale_nodes(self, now_us: Optional[int] = None) -> List[int]:
         """Node ids that have gone silent longer than ``stale_after_us``.
 

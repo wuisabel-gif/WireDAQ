@@ -255,7 +255,7 @@ WireDAQ/
     adr/0003-wire-format-specifics.md   endianness/CRC/version policy      [proposed]
     adr/0004-rust-lua-backend.md        Rust/Lua backend decision          [proposed]
     diagrams/phase-pipeline.html        interactive 5-phase roadmap        [present]
-  tests/                                pytest suite (50 checks)           [present]
+  tests/                                pytest suite (53 checks)           [present]
 ```
 
 ## What's here now
@@ -342,7 +342,7 @@ wiredaq-clocksync --nodes 3 --blocks 4000 --drift-ppm 60 --jitter-us 300
 ```
 
 ```bash
-# the test suite (50 checks) — the golden-vector trip-wire + the end-to-end seam tests
+# the test suite (53 checks) — the golden-vector trip-wire + the end-to-end seam tests
 pytest
 
 # the C firmware codec, held to the same golden vectors (cross-language proof)
@@ -419,8 +419,7 @@ Still ahead:
   the `magic|version` header prefix forever.
 - **The control plane.** The reserved `HEARTBEAT` / `DEVICE_INFO` / `CONFIG_ACK` message
   types (the first exercise of ADR 0003's "grow by msg_type" path), and `protocol/packets.md`
-  as the prose companion to the schema. (The per-node `ClockModel` from ADR 0002 now exists;
-  surfacing its derived `t_ref_us` as a CSV column is the remaining wiring.)
+  as the prose companion to the schema.
 
 ---
 
