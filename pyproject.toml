@@ -41,6 +41,7 @@ test = ["pytest>=7", "hypothesis>=6"]
 [project.scripts]
 wiredaq-slice = "wiredaq.cli.slice:main"
 wiredaq-serial = "wiredaq.cli.serial:main"
+wiredaq-clocksync = "wiredaq.cli.clocksync:main"
 
 [project.urls]
 Homepage = "https://github.com/wuisabel-gif/WireDAQ"

@@ -19,6 +19,7 @@ from typing import Dict, Iterable, List, Optional
 from wiredaq.protocol.codec import Packet
 from wiredaq.daq_sim.core.clock import Clock
 from wiredaq.daq_sim.core.interfaces import Receiver, Sink
+from wiredaq.ground_station.timing import ClockModel
 
 _SEQ_MOD = 1 << 32
 _SEQ_HALF = 1 << 31
@@ -43,6 +44,7 @@ class NodeStats:
     first_seq: int = -1
     last_seq: int = -1        # highest in-order seq observed
     last_seen_us: int = -1    # clock time the last frame from this node arrived (-1 = never)
+    clock: Optional["ClockModel"] = None  # per-node clock fit (ADR 0002); set when a Clock is given
 
     @property
     def expected(self) -> int:
@@ -98,7 +100,13 @@ class Collector:
         if packet.is_heartbeat:
             ns.heartbeats += 1
         if self.clock is not None:
-            ns.last_seen_us = self.clock.now_us()
+            arrival_us = self.clock.now_us()
+            ns.last_seen_us = arrival_us
+            # ADR 0002: fit this node's clock against our reference (arrival) clock. Every
+            # frame carries t_node_us (data or beacon), so each is one regression anchor.
+            if ns.clock is None:
+                ns.clock = ClockModel(packet.node_id)
+            ns.clock.update(packet.t_node_us, arrival_us)
 
         if ns.last_seq < 0:
             ns.first_seq = packet.seq

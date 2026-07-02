@@ -229,7 +229,8 @@ WireDAQ/
       receiver/stream_receiver.py       serial sync-word framing receiver  [present]
       logger/raw_logger.py              archival raw-frame logger          [present]
       dashboard/console_dashboard.py    live terminal dashboard sink       [present]
-    cli/{slice,serial}.py               wiredaq-slice / wiredaq-serial     [present]
+      timing/clock_model.py             per-node clock fit (ADR 0002)      [present]
+    cli/{slice,serial,clocksync}.py     wiredaq-slice/-serial/-clocksync   [present]
   firmware/                             on-device C codec
     codec/wiredaq_codec.{h,c}           the C codec                        [present]
     test/test_golden_vectors.c          C-side golden-vector trip-wire     [present]
@@ -254,7 +255,7 @@ WireDAQ/
     adr/0003-wire-format-specifics.md   endianness/CRC/version policy      [proposed]
     adr/0004-rust-lua-backend.md        Rust/Lua backend decision          [proposed]
     diagrams/phase-pipeline.html        interactive 5-phase roadmap        [present]
-  tests/                                pytest suite (45 checks)           [present]
+  tests/                                pytest suite (50 checks)           [present]
 ```
 
 ## What's here now
@@ -332,12 +333,16 @@ wiredaq-serial --nodes 2 --packets 200 --garbage 0.4 --corrupt 0.01 --seed 9
 # over a real loopback UDP link, with the live dashboard and a raw capture for replay
 wiredaq-slice --transport udp --raw-log out/capture.wdlog --dashboard
 
+# clock-domain reconstruction (ADR 0002): recover each node's injected drift and align
+#   differently-drifting nodes onto one timeline; --jitter-us widens the estimate honestly
+wiredaq-clocksync --nodes 3 --blocks 4000 --drift-ppm 60 --jitter-us 300
+
 # (without installing, the same entry points run as modules:)
 #   python -m wiredaq.cli.slice ... / python -m wiredaq.cli.serial ...
 ```
 
 ```bash
-# the test suite (45 checks) — the golden-vector trip-wire + the end-to-end seam tests
+# the test suite (50 checks) — the golden-vector trip-wire + the end-to-end seam tests
 pytest
 
 # the C firmware codec, held to the same golden vectors (cross-language proof)
@@ -398,22 +403,24 @@ What exists across the hardware path, all in software, all behind the same ports
 - **The C firmware codec** (`firmware/`), held to the same golden vectors as the Python
   codec — the cross-language byte-compatibility proof, before any board is built.
 - **Record / replay.** `RawFrameLogger` + `ReplayNode` make any session reproducible.
+- **Per-node clock reconstruction** (ADR 0002, [accepted](docs/adr/0002-clock-domain.md)).
+  The `Collector` fits a per-node `ClockModel` against its own reference clock, recovering
+  each node's drift and placing differently-drifting nodes on one timeline. The
+  `SyntheticNode`'s injected `drift_ppm` is its own test oracle — recovered within
+  < 0.5 ppm; jitter widens the confidence interval without biasing it. `wiredaq-clocksync`
+  demos it end-to-end.
 
 Still ahead:
 
-- **ADR 0002 — Clock domain** _(drafted, [proposed](docs/adr/0002-clock-domain.md))_.
-  Node-local time stays authoritative on the wire; a per-node clock
-  model at the ground station reconstructs one global timeline. The `SyntheticNode`'s
-  `drift_ppm` is the built-in test oracle for it.
 - **ADR 0003 — Wire format specifics** _(drafted,
   [proposed](docs/adr/0003-wire-format-specifics.md))_. Locks
   little-endian / CRC-16-CCITT-FALSE / 256-byte sizing (what the codecs already do) and
   decides version negotiation: fail closed on unknown versions, grow by `msg_type`, freeze
   the `magic|version` header prefix forever.
 - **The control plane.** The reserved `HEARTBEAT` / `DEVICE_INFO` / `CONFIG_ACK` message
-  types (the first exercise of ADR 0003's "grow by msg_type" path), the per-node
-  `ClockModel` from ADR 0002, and `protocol/packets.md` as the prose companion to the
-  schema.
+  types (the first exercise of ADR 0003's "grow by msg_type" path), and `protocol/packets.md`
+  as the prose companion to the schema. (The per-node `ClockModel` from ADR 0002 now exists;
+  surfacing its derived `t_ref_us` as a CSV column is the remaining wiring.)
 
 ---
 
