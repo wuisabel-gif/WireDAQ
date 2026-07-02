@@ -10,8 +10,9 @@ off the link.
 A subtle but load-bearing point: a :class:`Sink` receives *decoded* packets, not raw
 bytes — but re-encoding a decoded packet with the production codec reproduces the
 original frame exactly, because the codec round-trips the golden vectors by construction.
-So the archive is byte-identical to what was received, with no separate "raw bytes" path
-needed.
+Re-encoding must route on ``msg_type`` (a HEARTBEAT is header-only, not a SAMPLE_BLOCK);
+with that, the archive is byte-identical to what was received, with no separate "raw
+bytes" path needed.
 
 Log format (repeated): ``uint16 little-endian frame length`` followed by that many bytes.
 """
@@ -22,7 +23,7 @@ import struct
 from pathlib import Path
 from typing import BinaryIO, Iterator, Optional
 
-from wiredaq.protocol.codec import Packet, encode_sample_block
+from wiredaq.protocol.codec import Packet, encode_heartbeat, encode_sample_block
 from wiredaq.daq_sim.core.interfaces import Sink
 
 _LEN_FMT = "<H"  # 2-byte little-endian length prefix
@@ -42,7 +43,15 @@ class RawFrameLogger(Sink):
     def consume(self, packet: Packet) -> None:
         if self._fh is None:
             raise RuntimeError("RawFrameLogger is closed")
-        frame = encode_sample_block(**packet.to_input())  # round-trips to original bytes
+        if packet.is_heartbeat:
+            frame = encode_heartbeat(
+                node_id=packet.node_id,
+                seq=packet.seq,
+                t_node_us=packet.t_node_us,
+                sample_rate_hz=packet.sample_rate_hz,
+            )
+        else:
+            frame = encode_sample_block(**packet.to_input())  # round-trips to original bytes
         self._fh.write(struct.pack(_LEN_FMT, len(frame)))
         self._fh.write(frame)
         self.frames_written += 1

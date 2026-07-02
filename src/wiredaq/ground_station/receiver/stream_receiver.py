@@ -35,6 +35,7 @@ from wiredaq.protocol.codec import (
     HEADER_SIZE,
     MAGIC,
     MAX_PACKET_BYTES,
+    MSG_HEARTBEAT,
     MSG_SAMPLE_BLOCK,
     VERSION,
     CrcError,
@@ -104,7 +105,7 @@ class StreamReceiver(Receiver):
             channel_count = buf[_CHANNEL_COUNT_OFFSET]
             sample_count = buf[_SAMPLE_COUNT_OFFSET]
 
-            if version != VERSION or msg_type != MSG_SAMPLE_BLOCK:
+            if version != VERSION or msg_type not in (MSG_SAMPLE_BLOCK, MSG_HEARTBEAT):
                 # A sync word that wasn't really a frame header — false positive.
                 self.stats.resync_bytes += 1
                 del buf[:1]

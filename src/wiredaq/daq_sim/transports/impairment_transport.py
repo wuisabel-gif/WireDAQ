@@ -106,12 +106,14 @@ class ImpairmentTransport(Transport):
 
     # -- internal helpers ------------------------------------------------------
     def _corrupt(self, frame: bytes) -> bytes:
-        """Flip one bit in a payload byte (leaves magic/header length intact so the
-        frame still parses far enough for the CRC check to reject it)."""
-        if len(frame) <= 26:  # header(24) + crc(2): no payload to corrupt
-            idx = self._rng.randrange(2, 24)  # avoid magic so it still frames
-        else:
-            idx = self._rng.randrange(24, len(frame) - 2)
+        """Flip one bit in a *data* byte so the frame still frames and the CRC — not the
+        framer — is what rejects it. Never touches magic (0-1), version (2), msg_type (3),
+        channel_count (22), or sample_count (23): mutating those changes the frame's
+        declared shape, so decode would raise FramingError instead of CrcError and the
+        corruption would be miscounted. Corruptible bytes are node_id/seq/t_node_us/
+        sample_rate (offsets 4-21) plus any payload (offset 24 .. before the 2-byte CRC)."""
+        candidates = list(range(4, 22)) + list(range(24, len(frame) - 2))
+        idx = self._rng.choice(candidates)
         mutated = bytearray(frame)
         mutated[idx] ^= 1 << self._rng.randrange(8)
         return bytes(mutated)

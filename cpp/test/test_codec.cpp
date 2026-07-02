@@ -84,11 +84,30 @@ static bool crc_rejects_corruption() {
     return true;
 }
 
+static bool encode_rejects_uint8_sample_overflow() {
+    // 256 samples on 1 channel: sample_count is a uint8 on the wire, so a naive cast
+    // wraps mod 256 and silently encodes an empty frame. The wrapper must reject it.
+    wiredaq::Packet p;
+    p.channel_count = 1;
+    p.samples.assign(256, 7);
+    try {
+        (void)wiredaq::encode(p);
+    } catch (const wiredaq::EncodeError& e) {
+        if (e.status == wiredaq::Status::too_big) {
+            std::printf("  ok   encode rejects 256 samples/channel (too_big)\n");
+            return true;
+        }
+    }
+    std::printf("  FAIL encode did not reject 256 samples/channel\n");
+    return false;
+}
+
 int main() {
     std::printf("WireDAQ C++ codec — golden-vector conformance\n");
     bool selftests = crc_self_test();
     for (std::size_t i = 0; i < GOLDEN_VECTOR_COUNT; ++i) check_vector(GOLDEN_VECTORS[i]);
     selftests = crc_rejects_corruption() && selftests;
+    selftests = encode_rejects_uint8_sample_overflow() && selftests;
 
     if (g_failures || !selftests) {
         std::printf("FAILED: %d vector failure(s)%s\n", g_failures,

@@ -114,8 +114,15 @@ inline std::uint16_t crc16_ccitt_false(const std::uint8_t* data, std::size_t len
 /// Encode a packet to its complete on-wire frame (magic + header + payload + CRC).
 /// Throws `EncodeError` if the packet can't be serialized.
 inline std::vector<std::uint8_t> encode(const Packet& pkt) {
-    if (pkt.channel_count != 0 && pkt.samples.size() % pkt.channel_count != 0) {
-        throw EncodeError(Status::arg);  // ragged: not a whole number of samples
+    if (pkt.channel_count != 0) {
+        if (pkt.samples.size() % pkt.channel_count != 0) {
+            throw EncodeError(Status::arg);  // ragged: not a whole number of samples
+        }
+        // sample_count is a uint8 on the wire; reject before to_c() casts it and wraps
+        // mod 256 (e.g. 256 samples/channel would silently encode as an empty frame).
+        if (pkt.samples.size() / pkt.channel_count > 0xFF) {
+            throw EncodeError(Status::too_big);
+        }
     }
     wd_packet_t c{};
     detail::to_c(pkt, c);

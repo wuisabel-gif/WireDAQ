@@ -63,7 +63,10 @@ class SyntheticNode(SensorNode):
         self.heartbeat_every = heartbeat_every
 
         self._seq = start_seq & 0xFFFFFFFF
-        self._t_node_us = t_start_us & 0xFFFFFFFFFFFFFFFF
+        # Drift accumulates in a float clock and is rounded to a uint64 only at encode
+        # time; rounding each block's increment instead would quantize away any drift
+        # whose per-block offset is < 0.5 us (e.g. 100 ppm at 2500 us/block).
+        self._t_node_us = float(t_start_us & 0xFFFFFFFFFFFFFFFF)
         self._emitted = 0
         self._blocks_since_hb = 0  # data blocks since the last heartbeat beacon
         self._sample_index = 0  # global sample counter, for signal phase continuity
@@ -72,6 +75,11 @@ class SyntheticNode(SensorNode):
         # Block duration on this node's *own* (drifting) clock, in microseconds.
         ideal_us = samples_per_block * 1_000_000 / sample_rate_hz
         self._block_dt_us = ideal_us * (1.0 + drift_ppm / 1_000_000.0)
+
+    @property
+    def _t_now_us(self) -> int:
+        """The node's drifting clock as an on-wire uint64 (round the float once, here)."""
+        return round(self._t_node_us) & 0xFFFFFFFFFFFFFFFF
 
     def _sample(self, global_i: int) -> list:
         """One sample row of ``channel_count`` int16 counts."""
@@ -101,7 +109,7 @@ class SyntheticNode(SensorNode):
             frame = encode_heartbeat(
                 node_id=self.node_id,
                 seq=self._seq,
-                t_node_us=self._t_node_us,
+                t_node_us=self._t_now_us,
                 sample_rate_hz=self.sample_rate_hz,
             )
             self._seq = (self._seq + 1) & 0xFFFFFFFF
@@ -115,14 +123,14 @@ class SyntheticNode(SensorNode):
         frame = encode_sample_block(
             node_id=self.node_id,
             seq=self._seq,
-            t_node_us=self._t_node_us,
+            t_node_us=self._t_now_us,
             sample_rate_hz=self.sample_rate_hz,
             channel_count=self.channel_count,
             samples=samples,
         )
 
         self._seq = (self._seq + 1) & 0xFFFFFFFF
-        self._t_node_us = (self._t_node_us + round(self._block_dt_us)) & 0xFFFFFFFFFFFFFFFF
+        self._t_node_us += self._block_dt_us
         self._emitted += 1
         self._blocks_since_hb += 1
         return frame
