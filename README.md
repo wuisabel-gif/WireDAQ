@@ -16,7 +16,7 @@ small Nim CLI for checking captured or live WireDAQ telemetry streams.
 
 ---
 
-## Quickstart — three ways to use it
+## Quickstart — five ways to use it
 
 **1. Just look (no install).** Open the **[live demo](https://wuisabel-gif.github.io/WireDAQ/)**
 and click the two interactive tools — a capacity console and a phase roadmap. Nothing to install.
@@ -125,11 +125,11 @@ How each piece maps onto a flight concern:
 | Links **lose, reorder, and corrupt** data under vibration and EMI | `ImpairmentTransport` (loss/dup/reorder), `SerialTransport` line noise + sync-word framing, and a **CRC on every frame** so a single bit flip is rejected, never accepted as data. |
 | Telemetry is lossy; the **onboard log is ground truth** | `RawFrameLogger` archives exact wire bytes; `ReplayNode` plays a recovered capture back through the *same* pipeline — post-flight analysis and regression from real data. |
 | Flight events must be **time-correlated** across nodes whose clocks drift | [ADR 0002](docs/adr/0002-clock-domain.md): node-local time authoritative on the wire; the ground station reconstructs one timeline per node from a clock model. |
-| Validate before flight with **hardware-in-the-loop** | A real sensor board replaces a `SyntheticNode` behind the same port — HIL is a drop-in, and the ground station you flew is the one you tested. |
+| Validate before flight with **hardware-in-the-loop** | A real sensor board replaces a `SyntheticNode` behind the same port — the HIL seam is designed in (the hardware adapter isn't built yet), so the ground station you flew is the one you tested. |
 | Runs on a **flight MCU** | 256-byte packet cap, fixed header, a C codec with **no dynamic allocation**, and **fail-closed** version handling ([ADR 0003](docs/adr/0003-wire-format-specifics.md)). |
 
-**Scope, honestly:** WireDAQ embodies avionics-grade *architecture and verification
-practice* (one enforced ICD, honest link modeling, time discipline, record/replay, HIL-ready
+**Scope, honestly:** WireDAQ embodies the *architecture and verification practice* avionics
+needs (one enforced ICD, honest link modeling, time discipline, record/replay, HIL-ready
 seams) and is a development / integration / teaching harness — the cheap place to get the
 seams and the wire contract right before boards exist. It is **not** certified flight
 software: no DO-178C/DO-254 claim, and the C codec would need the usual qualification and
@@ -254,7 +254,7 @@ WireDAQ/
     adr/0003-wire-format-specifics.md   endianness/CRC/version policy      [proposed]
     adr/0004-rust-lua-backend.md        Rust/Lua backend decision          [proposed]
     diagrams/phase-pipeline.html        interactive 5-phase roadmap        [present]
-  tests/                                pytest suite (18 checks)           [present]
+  tests/                                pytest suite (45 checks)           [present]
 ```
 
 ## What's here now
@@ -337,7 +337,7 @@ wiredaq-slice --transport udp --raw-log out/capture.wdlog --dashboard
 ```
 
 ```bash
-# the test suite (18 checks) — the golden-vector trip-wire + the end-to-end seam tests
+# the test suite (45 checks) — the golden-vector trip-wire + the end-to-end seam tests
 pytest
 
 # the C firmware codec, held to the same golden vectors (cross-language proof)
@@ -375,8 +375,9 @@ Both are self-contained HTML — open them in any browser, no build step.
   watch real hardware grow inward from both ends while the wire contract holds still.
 - **`tools/dashboard/index.html`** — the *how much*: a live console for capacity
   planning and what-if analysis, with finite buffers, modeled loss and jitter, independent
-  per-node clocks, A/B comparison, and report export. Its packet-overhead math is wired to
-  `packet_schema.yaml`, and it links back to the schema and vectors as the authority.
+  per-node clocks, A/B comparison, and report export. Its packet-overhead math matches
+  `packet_schema.yaml` (the 24-byte header + 2-byte CRC constants are duplicated, not
+  imported), and it links back to the schema and vectors as the authority.
 
 ## Status & roadmap
 
@@ -400,12 +401,12 @@ What exists across the hardware path, all in software, all behind the same ports
 
 Still ahead:
 
-- **ADR 0002 — Clock domain** _(drafted, [proposed](docs/adr/0002-clock-domain.md),
-  pending sign-off)_. Node-local time stays authoritative on the wire; a per-node clock
+- **ADR 0002 — Clock domain** _(drafted, [proposed](docs/adr/0002-clock-domain.md))_.
+  Node-local time stays authoritative on the wire; a per-node clock
   model at the ground station reconstructs one global timeline. The `SyntheticNode`'s
   `drift_ppm` is the built-in test oracle for it.
 - **ADR 0003 — Wire format specifics** _(drafted,
-  [proposed](docs/adr/0003-wire-format-specifics.md), pending sign-off)_. Locks
+  [proposed](docs/adr/0003-wire-format-specifics.md))_. Locks
   little-endian / CRC-16-CCITT-FALSE / 256-byte sizing (what the codecs already do) and
   decides version negotiation: fail closed on unknown versions, grow by `msg_type`, freeze
   the `magic|version` header prefix forever.

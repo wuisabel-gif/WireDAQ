@@ -35,10 +35,10 @@ The physics in this tool is a useful approximation for sizing and intuition. It 
 - `src/wiredaq/protocol/packet_schema.yaml` — the wire format (24-byte header, sequencing, timestamps, CRC).
 - `src/wiredaq/protocol/golden/` — the golden vectors every codec must reproduce.
 
-The simulator's packet-overhead math is wired to that schema: a 24-byte header plus a
-2-byte CRC trailer, with `int16` samples. If the schema's header size changes, update
-the `HEADER` / `CRC` constants near the top of the script so the bandwidth and
-samples-per-packet figures stay honest.
+The simulator's packet-overhead math matches that schema: a 24-byte header plus a
+2-byte CRC trailer, with `int16` samples. The constants are duplicated, not imported —
+if the schema's header size changes, update the `HEADER` / `CRC` constants near the top
+of the script so the bandwidth and samples-per-packet figures stay honest.
 
 ## Companion tools
 

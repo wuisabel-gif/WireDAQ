@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-06-20
-- **Deciders:** _(awaiting sign-off)_
+- **Deciders:** Isabel Wu
 - **Tags:** architecture, daq, wire-format, protocol, versioning
 - **Supersedes / relates to:** deferred from [ADR 0001](0001-wire-ready-architecture.md)
 

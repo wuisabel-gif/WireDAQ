@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-06-19
-- **Deciders:** _(fill in)_
+- **Deciders:** Isabel Wu
 - **Tags:** architecture, daq, simulation, hardware-in-the-loop
 
 ## Summary
