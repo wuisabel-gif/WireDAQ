@@ -50,6 +50,17 @@ jobs:
           cmake --build build
           ctest --test-dir build --output-on-failure
 
+  rust:
+    # The Rust/Lua backend: its codec must still reproduce the golden frames and its
+    # seeded link simulation must hold its invariants (loss == receiver-observed loss,
+    # faults actually drop packets, same seed reproduces the same run).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo test
+        run: cargo test -p wiredaq-rs
+
   package:
     # Same build + check the publish workflow runs, but on every push — so packaging
     # breakage surfaces here instead of when a release is being cut.

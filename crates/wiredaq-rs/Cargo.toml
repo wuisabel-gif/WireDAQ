@@ -12,3 +12,9 @@ path = "src/lib.rs"
 
 [dependencies]
 mlua = { version = "0.10", features = ["lua54", "vendored"] }
+
+[dev-dependencies]
+# Test-only: lets the golden-vector test read the single source of truth
+# (src/wiredaq/protocol/golden/vectors.json) instead of transcribing frames. The
+# shipped crate keeps only mlua.
+serde_json = "1"

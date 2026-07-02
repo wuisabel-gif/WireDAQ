@@ -279,12 +279,18 @@ WireDAQ/
   whole architecture rests on: Python and C agree because the same committed vectors gate
   both. Its golden header is generated from `vectors.json`, so nothing is hand-transcribed.
 - **`crates/wiredaq-rs/`** — the Rust experimental backend. It mirrors the same frame
-  format, validates CRC behavior, reproduces representative golden frames, and includes
-  `wiredaq-sim`, a small runner that loads Lua scenario files and reports packet count,
-  sample count, encoded bytes, frame size, and expected loss.
-- **`scenarios/*.lua`** — editable high-rate DAQ scenarios. The first two model a MicroDAQ
-  10 kHz raw stream and a static-fire fault-injection case, giving the Rust backend a
-  concrete way to test packet sizing and receiver-side raw streaming assumptions.
+  format, validates CRC behavior, reproduces **every** golden vector read straight from
+  `vectors.json` (decode + re-encode, byte-for-byte, so drift fails the Rust build), and includes
+  `wiredaq-sim`, a runner that loads a Lua scenario and runs a **seeded link simulation**
+  over it: per-packet loss / duplication / jitter / reorder from a deterministic PRNG, a
+  receiver pass that decodes and CRC-checks every delivered frame and re-derives loss from
+  the sequence counter, plus `faults` (loss bursts, stuck sensors) and `assertions` that
+  are executed and checked. It reports offered vs. delivered / dropped / duplicated /
+  reordered and the analytic-vs-observed loss.
+- **`scenarios/*.lua`** — editable high-rate DAQ scenarios the Rust runner executes. The
+  two model a MicroDAQ 10 kHz raw stream (with `assertions`) and a static-fire
+  fault-injection case (a mid-run packet-loss burst and a stuck sensor), exercising packet
+  sizing, the loss/jitter/reorder link model, and receiver-side sequence accounting.
 - **[WireDAQ Health](https://github.com/wuisabel-gif/Wiredaq-health)** — a separate Nim
   companion repo for stream diagnostics. It consumes this repo's wire format and reports
   CRC failures, framing errors, dropped/reordered packets, timestamp issues, packet size,

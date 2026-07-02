@@ -254,6 +254,9 @@ fn finish_frame(mut frame: Vec<u8>) -> Result<Vec<u8>, CodecError> {
 mod tests {
     use super::*;
 
+    use serde_json::Value;
+    use std::path::Path;
+
     fn hex_to_bytes(hex: &str) -> Vec<u8> {
         assert!(hex.len() % 2 == 0);
         (0..hex.len())
@@ -267,61 +270,63 @@ mod tests {
         assert_eq!(crc16_ccitt_false(b"123456789"), 0x29B1);
     }
 
+    /// Hold the Rust codec to the *same* `vectors.json` that gates the Python, C, and C++
+    /// codecs — read directly, not transcribed — so cross-language drift fails the Rust
+    /// build too. Every vector is decoded and (for both message types) re-encoded, and both
+    /// must reproduce the committed frame byte-for-byte.
     #[test]
-    fn encodes_minimal_golden_vector() {
-        let expected =
-            hex_to_bytes("574401010100000000000000000000000000e80300000101e803b5a7");
+    fn all_golden_vectors_roundtrip_from_source() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("src/wiredaq/protocol/golden/vectors.json");
+        let doc: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let vectors = doc["vectors"].as_array().expect("vectors array");
+        assert!(vectors.len() >= 6, "expected the full vector set");
 
-        let frame = encode_sample_block(1, 0, 0, 1000, 1, &[vec![1000]]).unwrap();
+        for v in vectors {
+            let name = v["name"].as_str().unwrap();
+            let frame = hex_to_bytes(v["frame_hex"].as_str().unwrap());
+            let input = &v["input"];
+            let node_id = input["node_id"].as_u64().unwrap() as u16;
+            let seq = input["seq"].as_u64().unwrap() as u32;
+            let t_node_us = input["t_node_us"].as_u64().unwrap();
+            let sample_rate_hz = input["sample_rate_hz"].as_u64().unwrap() as u32;
 
-        assert_eq!(frame, expected);
-    }
+            // Decode must succeed and recover the declared fields.
+            let packet = decode(&frame).unwrap_or_else(|e| panic!("{name}: decode failed: {e}"));
+            assert_eq!(packet.node_id, node_id, "{name}: node_id");
+            assert_eq!(packet.seq, seq, "{name}: seq");
+            assert_eq!(packet.t_node_us, t_node_us, "{name}: t_node_us");
+            assert_eq!(packet.sample_rate_hz, sample_rate_hz, "{name}: sample_rate_hz");
 
-    #[test]
-    fn encodes_accel_golden_vector() {
-        let expected = hex_to_bytes(
-            "5744010107002a000000d202964900000000800c000003040a00ecff00400c00eefffc3ffbff000006406400c800803e2327",
-        );
-
-        let frame = encode_sample_block(
-            7,
-            42,
-            1_234_567_890,
-            3200,
-            3,
-            &[
-                vec![10, -20, 16_384],
-                vec![12, -18, 16_380],
-                vec![-5, 0, 16_390],
-                vec![100, 200, 16_000],
-            ],
-        )
-        .unwrap();
-
-        assert_eq!(frame, expected);
-    }
-
-    #[test]
-    fn encodes_heartbeat_golden_vector() {
-        let expected =
-            hex_to_bytes("5744010207002a000000d202964900000000800c0000000073e5");
-
-        let frame = encode_heartbeat(7, 42, 1_234_567_890, 3200).unwrap();
-
-        assert_eq!(frame, expected);
-    }
-
-    #[test]
-    fn decodes_int16_boundaries() {
-        let frame =
-            hex_to_bytes("57440101ff00ffffffffffffffffffffffff80bb000002020080ff7f0000ffff2d4d");
-
-        let packet = decode(&frame).unwrap();
-
-        assert_eq!(packet.node_id, 255);
-        assert_eq!(packet.seq, u32::MAX);
-        assert_eq!(packet.t_node_us, u64::MAX);
-        assert_eq!(packet.sample_rate_hz, 48_000);
-        assert_eq!(packet.samples, vec![vec![-32_768, 32_767], vec![0, -1]]);
+            // Re-encode must reproduce the exact committed bytes.
+            let reencoded = match v["msg_type"].as_str().unwrap() {
+                "HEARTBEAT" => {
+                    assert!(packet.is_heartbeat(), "{name}: msg_type");
+                    assert!(packet.samples.is_empty(), "{name}: heartbeat carries no samples");
+                    encode_heartbeat(node_id, seq, t_node_us, sample_rate_hz).unwrap()
+                }
+                "SAMPLE_BLOCK" => {
+                    let channel_count = input["channel_count"].as_u64().unwrap() as u8;
+                    let samples: Vec<Vec<i16>> = input["samples"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|row| {
+                            row.as_array()
+                                .unwrap()
+                                .iter()
+                                .map(|n| n.as_i64().unwrap() as i16)
+                                .collect()
+                        })
+                        .collect();
+                    assert_eq!(packet.samples, samples, "{name}: decoded samples");
+                    encode_sample_block(node_id, seq, t_node_us, sample_rate_hz, channel_count, &samples)
+                        .unwrap()
+                }
+                other => panic!("{name}: unknown msg_type {other}"),
+            };
+            assert_eq!(reencoded, frame, "{name}: re-encode is not byte-identical");
+        }
     }
 }

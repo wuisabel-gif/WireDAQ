@@ -26,8 +26,12 @@ codecs.
 
 The Lua files are scenario definitions, not a second packet schema. The Rust
 runner loads them through `mlua`, generates synthetic sample blocks using the
-existing WireDAQ packet contract, and reports packet count, sample count, frame
-size, encoded bytes, and expected loss.
+existing WireDAQ packet contract, and runs a seeded link simulation over them:
+per-packet loss, duplication, jitter, and reorder from a deterministic PRNG (no
+`rand` dependency), a receiver pass that decodes and CRC-checks every delivered
+frame and re-derives loss from the sequence counter, and execution of the
+scenario's `faults` and `assertions` tables. It reports offered vs. delivered /
+dropped / duplicated / reordered packets and analytic-vs-observed loss.
 
 ## Consequences
 
@@ -40,9 +44,5 @@ size, encoded bytes, and expected loss.
 
 ## Follow-up work
 
-- Extend the Rust runner from capacity reports to real UDP/serial transport tests.
-- Add a Rust golden-vector test that reads `src/wiredaq/protocol/golden/vectors.json`
-  once JSON support is introduced.
-- Add MicroDAQ-specific capacity reports for packet size, sample rate, and drop
-  detection.
+- Extend the Rust runner from the in-memory link model to real UDP/serial transport tests.
 - Compare Python simulator output and Rust simulator output for the same scenario.
