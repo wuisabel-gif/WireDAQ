@@ -328,7 +328,9 @@ fn synthetic_samples(
     for sample_i in 0..sample_count {
         let mut row = Vec::with_capacity(channel_count);
         for channel_i in 0..channel_count {
-            let live = ((seq as i32 * 17 + sample_i as i32 * 3 + channel_i as i32) % 32_000) as i16;
+            let live = ((seq as i32).wrapping_mul(17).wrapping_add(sample_i as i32 * 3)
+                .wrapping_add(channel_i as i32)
+                % 32_000) as i16;
             let value = if sensor_stuck(node.id, channel_i, now_s, faults) {
                 // Freeze at the last live value seen when the fault first bit.
                 *stuck[channel_i].get_or_insert(live)

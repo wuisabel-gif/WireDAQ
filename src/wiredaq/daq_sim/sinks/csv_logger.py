@@ -37,6 +37,7 @@ class CsvLogger(Sink):
         self.max_channels = max_channels
         self.clock_lookup = clock_lookup
         self.rows_written = 0
+        self.rows_truncated = 0  # rows with more channels than max_channels (columns dropped)
 
         header = ["node_id", "seq", "sample_index", "t_sample_us"]
         if clock_lookup is not None:
@@ -54,6 +55,8 @@ class CsvLogger(Sink):
             if self.clock_lookup is not None:
                 # Blank until the node's clock model has enough points to be trustworthy.
                 fields.append(model.to_ref(t_sample_us) if model is not None and model.ready else "")
+            if len(row) > self.max_channels:
+                self.rows_truncated += 1  # more channels than columns → the extras are dropped
             channels = list(row[: self.max_channels])
             channels += [""] * (self.max_channels - len(channels))
             fields += channels

@@ -13,8 +13,9 @@ signed delta on the 32-bit ring rather than plain ``<`` / ``>``.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional
+from typing import Deque, Dict, Iterable, List, Optional, Set
 
 from wiredaq.protocol.codec import Packet
 from wiredaq.daq_sim.core.clock import Clock
@@ -23,6 +24,10 @@ from wiredaq.ground_station.timing import ClockModel
 
 _SEQ_MOD = 1 << 32
 _SEQ_HALF = 1 << 31
+# How many recent seqs to remember per node when distinguishing a genuine late arrival from
+# a stale duplicate. ponytail: a bounded window (not the whole history); a duplicate older
+# than this reappears as a reorder, which is fine for the reorder distances a link produces.
+_SEEN_WINDOW = 4096
 
 
 def seq_delta(a: int, b: int) -> int:
@@ -45,6 +50,8 @@ class NodeStats:
     last_seq: int = -1        # highest in-order seq observed
     last_seen_us: int = -1    # clock time the last frame from this node arrived (-1 = never)
     clock: Optional["ClockModel"] = None  # per-node clock fit (ADR 0002); set when a Clock is given
+    _seen: Set[int] = field(default_factory=set, repr=False)       # recent seqs, for dup detection
+    _seen_q: Deque[int] = field(default_factory=deque, repr=False)  # eviction order for _seen
 
     @property
     def expected(self) -> int:
@@ -111,21 +118,33 @@ class Collector:
         if ns.last_seq < 0:
             ns.first_seq = packet.seq
             ns.last_seq = packet.seq
+            self._remember(ns, packet.seq)
             return
 
+        # Any seq we've already accepted is a duplicate — including a *stale* duplicate of an
+        # old seq, which a high-water-only check would misread as a reorder and wrongly
+        # credit against `lost`.
+        if packet.seq in ns._seen:
+            ns.duplicated += 1
+            return
+        self._remember(ns, packet.seq)
+
         delta = seq_delta(packet.seq, ns.last_seq)
-        if delta == 1:
-            ns.last_seq = packet.seq            # perfectly in order
-        elif delta > 1:
-            ns.lost += delta - 1                # forward gap → that many lost
+        if delta > 0:
+            if delta > 1:
+                ns.lost += delta - 1            # forward gap → that many lost
             ns.last_seq = packet.seq
-        elif delta == 0:
-            ns.duplicated += 1                  # same seq again
-        else:  # delta < 0
-            ns.reordered += 1                   # arrived older than the high-water mark
-            # A reordered packet often fills a gap we already counted as lost.
-            if ns.lost > 0:
+        else:  # delta < 0, and not seen before → a genuine late/reordered arrival
+            ns.reordered += 1
+            if ns.lost > 0:                     # it fills a gap we already counted as lost
                 ns.lost -= 1
+
+    @staticmethod
+    def _remember(ns: NodeStats, seq: int) -> None:
+        ns._seen.add(seq)
+        ns._seen_q.append(seq)
+        if len(ns._seen_q) > _SEEN_WINDOW:
+            ns._seen.discard(ns._seen_q.popleft())
 
     def process(self, packet: Packet) -> None:
         """Track one packet and deliver it to every sink."""

@@ -132,6 +132,10 @@ wd_status_t wd_decode_frame(const uint8_t *frame, size_t len, wd_packet_t *pkt)
 
     uint8_t channel_count = frame[22];
     uint8_t sample_count  = frame[23];
+    /* Fail closed on control-plane shape: a HEARTBEAT is header-only. A nonzero count with
+       the other zero still yields a 26-byte frame, so the length check alone won't catch it. */
+    if (frame[3] == WD_MSG_HEARTBEAT && (channel_count != 0 || sample_count != 0))
+        return WD_ERR_FRAMING;
     size_t expected = wd_frame_length(channel_count, sample_count);
     if (len != expected) return WD_ERR_FRAMING;
 

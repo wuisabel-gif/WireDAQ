@@ -102,12 +102,47 @@ static bool encode_rejects_uint8_sample_overflow() {
     return false;
 }
 
+static bool heartbeat_roundtrips_through_encode() {
+    // encode() must dispatch on msg_type: encode(decode(hb)) has to reproduce the heartbeat,
+    // not silently re-emit it as a SAMPLE_BLOCK.
+    std::vector<std::uint8_t> hb = wiredaq::encode_heartbeat(7, 42, 1234, 3200);
+    std::optional<wiredaq::Packet> decoded = wiredaq::decode(hb);
+    if (!decoded || !decoded->is_heartbeat()) {
+        std::printf("  FAIL heartbeat did not decode as a heartbeat\n");
+        return false;
+    }
+    if (wiredaq::encode(*decoded) != hb) {
+        std::printf("  FAIL heartbeat re-encode is not byte-identical\n");
+        return false;
+    }
+    std::printf("  ok   heartbeat round-trips through encode()\n");
+    return true;
+}
+
+static bool decode_rejects_misshaped_heartbeat() {
+    // channel_count=1 keeps the frame at 26 bytes, so only the shape check can reject it.
+    std::vector<std::uint8_t> f = wiredaq::encode_heartbeat(7, 42, 1234, 3200);
+    f[22] = 1;
+    std::uint16_t crc = wiredaq::crc16_ccitt_false(f.data(), 24);
+    f[24] = static_cast<std::uint8_t>(crc & 0xff);
+    f[25] = static_cast<std::uint8_t>(crc >> 8);
+    wiredaq::Packet out;
+    if (wiredaq::decode(f.data(), f.size(), out) != wiredaq::Status::framing) {
+        std::printf("  FAIL mis-shaped heartbeat was not rejected\n");
+        return false;
+    }
+    std::printf("  ok   decode rejects mis-shaped heartbeat\n");
+    return true;
+}
+
 int main() {
     std::printf("WireDAQ C++ codec — golden-vector conformance\n");
     bool selftests = crc_self_test();
     for (std::size_t i = 0; i < GOLDEN_VECTOR_COUNT; ++i) check_vector(GOLDEN_VECTORS[i]);
     selftests = crc_rejects_corruption() && selftests;
     selftests = encode_rejects_uint8_sample_overflow() && selftests;
+    selftests = heartbeat_roundtrips_through_encode() && selftests;
+    selftests = decode_rejects_misshaped_heartbeat() && selftests;
 
     if (g_failures || !selftests) {
         std::printf("FAILED: %d vector failure(s)%s\n", g_failures,

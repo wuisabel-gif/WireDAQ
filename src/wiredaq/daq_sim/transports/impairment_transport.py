@@ -167,13 +167,15 @@ class ImpairmentTransport(Transport):
         # Reorder: hold this frame back; it will be released after the next one.
         if self._held is None and self._rng.random() < self.config.reorder:
             self._held = bytes(frame)
-            self.stats.reordered += 1
             return
 
         self._emit(frame)
 
         if self._held is not None:
             held, self._held = self._held, None
+            # Count the reorder only now that a later frame has actually overtaken it — a
+            # frame released alone by flush() at end-of-stream was never reordered.
+            self.stats.reordered += 1
             self._emit(held)  # released late → overtaken by `frame`
 
     def recv(self) -> Optional[bytes]:

@@ -181,6 +181,12 @@ pub fn decode(frame: &[u8]) -> Result<Packet, CodecError> {
     let channel_count = frame[22];
     let sample_count = frame[23];
 
+    // Fail closed on control-plane shape: a HEARTBEAT is header-only. A nonzero count with
+    // the other zero still yields a 26-byte frame, so the length check alone won't catch it.
+    if msg_type == MsgType::Heartbeat && (channel_count != 0 || sample_count != 0) {
+        return Err(CodecError::SampleShapeMismatch);
+    }
+
     let expected_len = frame_length(channel_count, sample_count);
     if frame.len() != expected_len {
         return Err(CodecError::LengthMismatch {
@@ -268,6 +274,20 @@ mod tests {
     #[test]
     fn crc_check_value_matches_schema() {
         assert_eq!(crc16_ccitt_false(b"123456789"), 0x29B1);
+    }
+
+    #[test]
+    fn decode_rejects_misshaped_heartbeat() {
+        // A HEARTBEAT with channel_count=1 is still 26 bytes, so the length check passes;
+        // the control-plane shape check must fail it closed.
+        let mut frame = encode_heartbeat(1, 0, 0, 3200).unwrap();
+        frame[22] = 1; // channel_count
+        let crc = crc16_ccitt_false(&frame[..24]);
+        frame[24] = (crc & 0xff) as u8;
+        frame[25] = (crc >> 8) as u8;
+        assert!(matches!(decode(&frame), Err(CodecError::SampleShapeMismatch)));
+        // A real header-only heartbeat still decodes.
+        assert!(decode(&encode_heartbeat(1, 0, 0, 3200).unwrap()).unwrap().is_heartbeat());
     }
 
     /// Hold the Rust codec to the *same* `vectors.json` that gates the Python, C, and C++

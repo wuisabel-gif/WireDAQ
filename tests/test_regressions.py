@@ -14,14 +14,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+import struct  # noqa: E402
+
 from wiredaq.protocol.codec import (  # noqa: E402
     CrcError,
     FramingError,
+    MAGIC,
     MSG_HEARTBEAT,
+    VERSION,
+    crc16_ccitt_false,
     decode,
     encode_heartbeat,
     encode_sample_block,
 )
+from wiredaq.protocol.codec.wiredaq_codec import HEADER_FMT  # noqa: E402
+from wiredaq.daq_sim.collector.collector import Collector  # noqa: E402
 from wiredaq.ground_station.logger.raw_logger import (  # noqa: E402
     RawFrameLogger,
     read_raw_log,
@@ -109,6 +116,74 @@ def test_corruption_is_always_crc_not_framing():
 # analogue because encode_sample_block validates sample_count against 0xFF directly.
 
 
+def _misshaped_heartbeat(channel_count, sample_count):
+    """A HEARTBEAT header with nonzero counts but still 26 bytes (valid CRC, wrong shape)."""
+    header = struct.pack(
+        HEADER_FMT, MAGIC, VERSION, MSG_HEARTBEAT, 1, 0, 0, 0, channel_count, sample_count
+    )
+    return header + struct.pack("<H", crc16_ccitt_false(header))
+
+
+def test_decode_rejects_misshaped_heartbeat():
+    # Weak finding: a HEARTBEAT with channel_count=1, sample_count=0 is still 26 bytes, so
+    # the length check passes; the control-plane shape check must reject it (fail closed).
+    frame = _misshaped_heartbeat(channel_count=1, sample_count=0)
+    assert len(frame) == 26
+    try:
+        decode(frame)
+    except FramingError:
+        pass
+    else:
+        raise AssertionError("decode accepted a mis-shaped HEARTBEAT")
+    # A real heartbeat (0/0) still decodes fine.
+    assert decode(encode_heartbeat(1, 0, 0, 3200)).is_heartbeat
+
+
+class _NoReceiver:
+    def packets(self):
+        return iter(())
+
+
+def _sample_pkt(node_id, seq):
+    return decode(encode_sample_block(
+        node_id=node_id, seq=seq, t_node_us=0, sample_rate_hz=1000, channel_count=1, samples=[[1]]
+    ))
+
+
+def test_stale_duplicate_does_not_erase_real_loss():
+    # Weak finding: a stale duplicate of an already-seen seq was misread as a reorder and
+    # decremented `lost`, undercounting real loss. It must count as a duplicate instead.
+    col = Collector(_NoReceiver(), sinks=[])
+    col.process(_sample_pkt(1, 0))
+    col.process(_sample_pkt(1, 3))  # 1 and 2 lost -> lost = 2
+    ns = col.stats.nodes[1]
+    assert ns.lost == 2
+    col.process(_sample_pkt(1, 0))  # stale duplicate of already-seen seq 0
+    assert ns.duplicated == 1
+    assert ns.reordered == 0
+    assert ns.lost == 2  # real loss preserved (the bug decremented it to 1)
+
+
+def test_reorder_stat_only_counts_actual_overtakes():
+    from wiredaq.daq_sim.transports.impairment_transport import (
+        ImpairmentConfig,
+        ImpairmentTransport,
+    )
+    from wiredaq.daq_sim.transports.in_process import InProcessTransport
+
+    # Held then flushed alone: nothing overtook it, so it is not a reorder.
+    held_only = ImpairmentTransport(InProcessTransport(), ImpairmentConfig(reorder=1.0), seed=0)
+    held_only.send(b"x" * 30)
+    held_only.flush()
+    assert held_only.stats.reordered == 0
+
+    # Held, then a later frame overtakes it: that is a real reorder.
+    swapped = ImpairmentTransport(InProcessTransport(), ImpairmentConfig(reorder=1.0), seed=0)
+    swapped.send(b"a" * 30)
+    swapped.send(b"b" * 30)
+    assert swapped.stats.reordered == 1
+
+
 if __name__ == "__main__":
     import tempfile
 
@@ -117,4 +192,7 @@ if __name__ == "__main__":
     test_stream_receiver_frames_heartbeat()
     test_drift_ppm_actually_diverges()
     test_corruption_is_always_crc_not_framing()
+    test_decode_rejects_misshaped_heartbeat()
+    test_stale_duplicate_does_not_erase_real_loss()
+    test_reorder_stat_only_counts_actual_overtakes()
     print("all regression guards pass")

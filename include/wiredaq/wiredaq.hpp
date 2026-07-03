@@ -111,9 +111,19 @@ inline std::uint16_t crc16_ccitt_false(const std::uint8_t* data, std::size_t len
     return wd_crc16_ccitt_false(data, len);
 }
 
+/// Encode a HEARTBEAT (declared here; defined below) so `encode` can dispatch to it.
+inline std::vector<std::uint8_t> encode_heartbeat(
+    std::uint16_t node_id, std::uint32_t seq, std::uint64_t t_node_us,
+    std::uint32_t sample_rate_hz = 0);
+
 /// Encode a packet to its complete on-wire frame (magic + header + payload + CRC).
 /// Throws `EncodeError` if the packet can't be serialized.
 inline std::vector<std::uint8_t> encode(const Packet& pkt) {
+    // A HEARTBEAT is header-only; dispatch on msg_type so encode(decode(hb)) round-trips
+    // instead of silently re-emitting it as a SAMPLE_BLOCK.
+    if (pkt.msg_type == WD_MSG_HEARTBEAT) {
+        return encode_heartbeat(pkt.node_id, pkt.seq, pkt.t_node_us, pkt.sample_rate_hz);
+    }
     if (pkt.channel_count != 0) {
         if (pkt.samples.size() % pkt.channel_count != 0) {
             throw EncodeError(Status::arg);  // ragged: not a whole number of samples
@@ -137,7 +147,7 @@ inline std::vector<std::uint8_t> encode(const Packet& pkt) {
 /// Throws `EncodeError` if the frame can't be serialized.
 inline std::vector<std::uint8_t> encode_heartbeat(
     std::uint16_t node_id, std::uint32_t seq, std::uint64_t t_node_us,
-    std::uint32_t sample_rate_hz = 0) {
+    std::uint32_t sample_rate_hz) {
     std::uint8_t buf[WD_MAX_PACKET_BYTES];
     std::size_t out_len = 0;
     const wd_status_t st = wd_encode_heartbeat(

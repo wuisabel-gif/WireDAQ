@@ -258,6 +258,11 @@ def decode(frame: bytes) -> Packet:
         raise FramingError(f"unsupported version: {version}")
     if msg_type not in _DECODABLE_MSG_TYPES:
         raise FramingError(f"unsupported msg_type: {msg_type}")
+    # Fail closed on control-plane shape: a HEARTBEAT is header-only. Without this a frame
+    # with e.g. channel_count=5, sample_count=0 is still 26 bytes and would pass the length
+    # check, smuggling a bogus shape past the decoder.
+    if msg_type == MSG_HEARTBEAT and (channel_count != 0 or sample_count != 0):
+        raise FramingError("HEARTBEAT must be header-only (channel_count/sample_count = 0)")
 
     expected_len = frame_length(channel_count, sample_count)
     if len(frame) != expected_len:
