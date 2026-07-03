@@ -37,6 +37,8 @@ dependencies = []  # standard library only
 
 [project.optional-dependencies]
 test = ["pytest>=7", "hypothesis>=6"]
+# Reading a real serial device for hardware-in-the-loop; the core stays stdlib-only.
+hardware = ["pyserial>=3.5"]
 
 [project.scripts]
 wiredaq-slice = "wiredaq.cli.slice:main"

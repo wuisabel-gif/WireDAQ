@@ -19,6 +19,12 @@ Version numbers are bumped and reconciled across `pyproject.toml`, `Cargo.toml`,
   jitter / reorder with a decode-side receiver, plus executed `faults` and `assertions`
   tables; unknown fault kinds are rejected. Its golden vectors are read from the shared
   `vectors.json` (decode + re-encode) and `cargo test` runs in CI.
+- **Hardware-in-the-loop seam.** `SerialPortTransport` (a receive-side `ByteStreamTransport`
+  backed by a real serial device) lets a real board drop in behind the same port the
+  simulated serial link used; the existing StreamReceiver → Collector run unchanged.
+  Verified without hardware by a loopback test; `docs/bring-up-log-template.md` captures the
+  predicted-vs-observed comparison once a board is attached. `pyserial` is an optional
+  `hardware` extra — the core stays standard-library-only.
 
 ### Fixed
 - `RawFrameLogger` and `StreamReceiver` handle HEARTBEAT frames correctly (were re-encoded

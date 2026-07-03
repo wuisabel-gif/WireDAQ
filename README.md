@@ -125,7 +125,7 @@ How each piece maps onto a flight concern:
 | Links **lose, reorder, and corrupt** data under vibration and EMI | `ImpairmentTransport` (loss/dup/reorder), `SerialTransport` line noise + sync-word framing, and a **CRC on every frame** so a single bit flip is rejected, never accepted as data. |
 | Telemetry is lossy; the **onboard log is ground truth** | `RawFrameLogger` archives exact wire bytes; `ReplayNode` plays a recovered capture back through the *same* pipeline — post-flight analysis and regression from real data. |
 | Flight events must be **time-correlated** across nodes whose clocks drift | [ADR 0002](docs/adr/0002-clock-domain.md): node-local time authoritative on the wire; the ground station reconstructs one timeline per node from a clock model. |
-| Validate before flight with **hardware-in-the-loop** | A real sensor board replaces a `SyntheticNode` behind the same port — the HIL seam is designed in (the hardware adapter isn't built yet), so the ground station you flew is the one you tested. |
+| Validate before flight with **hardware-in-the-loop** | A real board's serial link replaces the simulated `SerialTransport` behind the `ByteStreamTransport` port — the `SerialPortTransport` adapter exists and is verified in loopback (real board pending), so the StreamReceiver and Collector you flew are the ones you tested. |
 | Runs on a **flight MCU** | 256-byte packet cap, fixed header, a C codec with **no dynamic allocation**, and **fail-closed** version handling ([ADR 0003](docs/adr/0003-wire-format-specifics.md)). |
 
 **Scope, honestly:** WireDAQ embodies the *architecture and verification practice* avionics
@@ -218,6 +218,7 @@ WireDAQ/
         in_process.py                   loss-free in-process link          [present]
         impairment_transport.py         datagram "honest fake" decorator   [present]
         serial_transport.py             byte-stream link + line noise      [present]
+        serial_port.py                  real serial device (HIL seam)      [present]
         udp_transport.py                real loopback UDP sockets          [present]
       nodes/
         synthetic_node.py               synthetic accelerometer node       [present]
@@ -251,11 +252,12 @@ WireDAQ/
   tools/dashboard/index.html            capacity / what-if console (HTML)  [present]
   docs/
     adr/0001-wire-ready-architecture.md the architecture decision          [accepted]
-    adr/0002-clock-domain.md            clock-domain decision              [proposed]
+    adr/0002-clock-domain.md            clock-domain decision              [accepted]
     adr/0003-wire-format-specifics.md   endianness/CRC/version policy      [proposed]
     adr/0004-rust-lua-backend.md        Rust/Lua backend decision          [proposed]
+    bring-up-log-template.md            HIL bring-up log (predicted vs real)[template]
     diagrams/phase-pipeline.html        interactive 5-phase roadmap        [present]
-  tests/                                pytest suite (56 checks)           [present]
+  tests/                                pytest suite (58 checks)           [present]
 ```
 
 ## What's here now
@@ -342,7 +344,7 @@ wiredaq-clocksync --nodes 3 --blocks 4000 --drift-ppm 60 --jitter-us 300
 ```
 
 ```bash
-# the test suite (56 checks) — the golden-vector trip-wire + the end-to-end seam tests
+# the test suite (58 checks) — the golden-vector trip-wire + the end-to-end seam tests
 pytest
 
 # the C firmware codec, held to the same golden vectors (cross-language proof)
