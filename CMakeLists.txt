@@ -14,7 +14,7 @@
 #   target_link_libraries(my_app PRIVATE wiredaq::codec)   # then #include <wiredaq/wiredaq.hpp>
 
 cmake_minimum_required(VERSION 3.16)
-project(WireDAQ VERSION 0.1.0 LANGUAGES C CXX)
+project(WireDAQ VERSION 0.3.0 LANGUAGES C CXX)
 
 option(WIREDAQ_BUILD_TESTS "Build the WireDAQ conformance tests" ON)
 option(WIREDAQ_BUILD_EXAMPLES "Build the WireDAQ examples" ON)

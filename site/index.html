@@ -120,16 +120,16 @@
   </section>
 
   <section class="release">
-    <span class="badge">latest release</span><span class="pill">v0.2.0</span>
+    <span class="badge">latest release</span><span class="pill">v0.3.0</span>
     <h2>Now on PyPI</h2>
     <p class="rel-sub">Install with <code>pip install wiredaq</code> — no checkout needed.</p>
     <ul class="rel-list">
-      <li><strong>Controllable clock</strong> (SimClock / WallClock) — deterministic, reproducible timing across the simulator.</li>
-      <li><strong>Link latency + jitter</strong> in the honest-fake transport; jitter alone produces realistic packet reordering.</li>
-      <li><strong>HEARTBEAT beacons</strong> — a liveness / clock message in all three codecs, with node-stale detection in the collector.</li>
-      <li><strong>Continuous integration</strong> — tests on Python 3.10–3.12 plus cross-language codec conformance on every push.</li>
+      <li><strong>Per-node clock reconstruction</strong> (ADR 0002) — the ground station recovers each node's drift and aligns differently-drifting nodes onto one timeline; <code>wiredaq-clocksync</code> demos it and the CSV export gains a reconstructed <code>t_ref_us</code> column.</li>
+      <li><strong>Rust/Lua backend now simulates the link</strong> — seeded loss / jitter / reorder with a decode-side receiver, plus executed <code>faults</code> / <code>assertions</code>; its golden vectors are read from the shared <code>vectors.json</code> and gated in CI.</li>
+      <li><strong>Correctness hardening</strong> — heartbeat handling fixed end-to-end, control-plane frames validated fail-closed across Python / C / Rust, and clock drift now modelled honestly.</li>
+      <li><strong>Continuous integration</strong> — tests on Python 3.10–3.12 plus cross-language C / C++ / Rust codec conformance on every push.</li>
     </ul>
-    <a class="rel-link" href="https://github.com/wuisabel-gif/WireDAQ/releases/tag/v0.2.0">Full release notes →</a>
+    <a class="rel-link" href="https://github.com/wuisabel-gif/WireDAQ/releases/tag/v0.3.0">Full release notes →</a>
   </section>
 
   <footer>
