@@ -18,6 +18,9 @@ discipline. See `docs/adr/0001-wire-ready-architecture.md`.
   and confirm a flipped payload bit is rejected as a CRC error.
 - `test/gen_golden_header.py` — projects `vectors.json` into `golden_vectors.h` so the
   test is held to the exact same vectors as the Python side, with nothing hand-typed.
+- `boards/nucleo_h753zi/` — the first physical-node H0 bring-up image for the
+  STM32H753ZI. It is intentionally separate from the generic codec and does not yet
+  acquire ADC samples or transmit WireDAQ frames.
 
 ## Build & test
 
@@ -30,6 +33,24 @@ make clean
 Requires a C11 compiler (`cc`/`clang`/`gcc`) and `python3` for the header generator.
 The build is host-native for testing; the codec itself is freestanding-friendly C
 (only `<stdint.h>`/`<stddef.h>`/`<string.h>`) ready to cross-compile for a target MCU.
+
+## STM32H753ZI H0 bring-up
+
+Initialize the board's CMSIS dependencies and build the first hardware image:
+
+```bash
+git submodule update --init --recursive
+cd firmware/boards/nucleo_h753zi
+make
+```
+
+The board project documents the NUCLEO-H753ZI pin map, flashing procedure, LED
+heartbeat, and ST-LINK virtual COM startup message in
+[`boards/nucleo_h753zi/README.md`](boards/nucleo_h753zi/README.md).
+
+This milestone deliberately does not change the WireDAQ protocol or add ADC,
+DMA, timer-triggered sampling, or a host-side special case. Those will be
+implemented as separate follow-on changes.
 
 ## What "in sync" means
 
