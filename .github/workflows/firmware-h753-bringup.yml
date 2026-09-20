@@ -16,6 +16,9 @@ jobs:
           submodules: recursive
       - name: Install ARM toolchain
         run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
-      - name: Build H753 H0 image
+      - name: Build H753 firmware
         working-directory: firmware/boards/nucleo_h753zi
         run: make
+      - name: Host-native H753 protocol helper
+        working-directory: firmware/boards/nucleo_h753zi
+        run: make test

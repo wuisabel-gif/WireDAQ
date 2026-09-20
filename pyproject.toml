@@ -44,6 +44,7 @@ hardware = ["pyserial>=3.5"]
 wiredaq-slice = "wiredaq.cli.slice:main"
 wiredaq-serial = "wiredaq.cli.serial:main"
 wiredaq-clocksync = "wiredaq.cli.clocksync:main"
+wiredaq-hil = "wiredaq.cli.hil:main"
 
 [project.urls]
 Homepage = "https://github.com/wuisabel-gif/WireDAQ"
