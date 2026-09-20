@@ -339,6 +339,10 @@ wiredaq-slice --transport udp --raw-log out/capture.wdlog --dashboard
 #   differently-drifting nodes onto one timeline; --jitter-us widens the estimate honestly
 wiredaq-clocksync --nodes 3 --blocks 4000 --drift-ppm 60 --jitter-us 300
 
+# hardware capture (NUCLEO-H753ZI ST-LINK VCP): same StreamReceiver → Collector path
+# pip install -e ".[hardware]"
+# wiredaq-hil --port /dev/ttyACM0 --packets 30 --csv out/h753.csv
+
 # (without installing, the same entry points run as modules:)
 #   python -m wiredaq.cli.slice ... / python -m wiredaq.cli.serial ...
 ```

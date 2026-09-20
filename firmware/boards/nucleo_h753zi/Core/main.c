@@ -1,13 +1,13 @@
 /*
- * WireDAQ NUCLEO-H753ZI H0/H1 bring-up.
+ * WireDAQ NUCLEO-H753ZI protocol emission (issue #15).
  *
- * H0: LED heartbeat and ST-LINK virtual COM startup output.
- * H1: one ADC1 polling conversion on PA3 / ADC12_INP15.
- *
- * This is intentionally polling only. Timer triggering, DMA, and WireDAQ
- * packet transmission belong to later milestones.
+ * Poll ADC1 on PA3, encode each reading with the existing C codec, and send
+ * a SAMPLE_BLOCK frame on USART3. Timer-triggered ADC and DMA belong later.
  */
 #include "stm32h753xx.h"
+#include "h753_protocol.h"
+
+#include <stddef.h>
 #include <stdint.h>
 
 #define LED_PORT GPIOB
@@ -18,8 +18,13 @@
 #define ADC_PORT GPIOA
 #define ADC_PIN 3u                  /* Arduino A0, ADC12_INP15 */
 #define ADC_CHANNEL 15u
-#define ADC_REFERENCE_MV 3300u      /* documented board-supply assumption */
-#define ADC_MAX_COUNT 65535u       /* 16-bit ADC resolution */
+
+static volatile uint32_t ticks_ms;
+
+void SysTick_Handler(void)
+{
+    ticks_ms++;
+}
 
 static void delay(volatile uint32_t iterations)
 {
@@ -84,21 +89,13 @@ static void uart_puts(const char *text)
     }
 }
 
-static void uart_put_u32(uint32_t value)
+static void uart_write(const uint8_t *data, size_t length)
 {
-    char digits[10];
-    uint32_t count = 0u;
-
-    if (value == 0u) {
-        uart_putc('0');
-        return;
-    }
-    while (value != 0u) {
-        digits[count++] = (char)('0' + (value % 10u));
-        value /= 10u;
-    }
-    while (count != 0u) {
-        uart_putc(digits[--count]);
+    size_t i;
+    for (i = 0u; i < length; ++i) {
+        while ((USART3->ISR & USART_ISR_TXE_TXFNF) == 0u) {
+        }
+        USART3->TDR = data[i];
     }
 }
 
@@ -141,30 +138,39 @@ static uint16_t adc_read(void)
     return (uint16_t)ADC1->DR;
 }
 
-static uint32_t adc_to_millivolts(uint16_t raw)
-{
-    return ((uint32_t)raw * ADC_REFERENCE_MV) / ADC_MAX_COUNT;
-}
-
 int main(void)
 {
+    uint32_t seq = 0u;
+    uint32_t last_ms;
+    uint8_t frame[WD_MAX_PACKET_BYTES];
+
     gpio_init();
     uart_init();
     adc_init();
+    (void)SysTick_Config(SystemCoreClock / 1000u);
 
-    uart_puts("WireDAQ NUCLEO-H753ZI bring-up\n");
-    uart_puts("firmware=h1-adc-polling version=0.2.0\n");
-    uart_puts("adc=ADC1_INP15 pin=PA3 resolution=16 reference_mv=3300\n");
+    uart_puts("WireDAQ NUCLEO-H753ZI\n");
+    uart_puts("firmware=h2-protocol version=0.3.0\n");
+    uart_puts("node_id=1 sample_rate_hz=10 channels=1 mapping=raw-32768\n");
 
+    last_ms = ticks_ms;
     for (;;) {
-        uint16_t raw = adc_read();
+        uint32_t now = ticks_ms;
+        size_t length = 0u;
+        uint16_t raw;
+        uint64_t t_node_us;
 
-        LED_PORT->ODR ^= (1u << LED_PIN);
-        uart_puts("adc_raw=");
-        uart_put_u32(raw);
-        uart_puts(" adc_mv=");
-        uart_put_u32(adc_to_millivolts(raw));
-        uart_puts("\n");
-        delay(SystemCoreClock / 8u);
+        if ((now - last_ms) < H753_PERIOD_MS) {
+            continue;
+        }
+        last_ms = now;
+
+        raw = adc_read();
+        t_node_us = (uint64_t)now * 1000u;
+        if (h753_encode_adc_sample(raw, seq, t_node_us, frame, sizeof frame, &length) == WD_OK) {
+            uart_write(frame, length);
+            seq++;
+            LED_PORT->ODR ^= (1u << LED_PIN);
+        }
     }
 }

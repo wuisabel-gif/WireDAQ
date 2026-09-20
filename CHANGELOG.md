@@ -25,6 +25,9 @@ Version numbers are bumped and reconciled across `pyproject.toml`, `Cargo.toml`,
   Verified without hardware by a loopback test; `docs/bring-up-log-template.md` captures the
   predicted-vs-observed comparison once a board is attached. `pyserial` is an optional
   `hardware` extra — the core stays standard-library-only.
+- **NUCLEO-H753ZI protocol emission.** The H753 firmware encodes polled ADC readings with
+  the existing C codec and streams `SAMPLE_BLOCK` frames on USART3. `wiredaq-hil` is the
+  host capture command; it does not add a board-specific decoder.
 
 ### Fixed
 - `RawFrameLogger` and `StreamReceiver` handle HEARTBEAT frames correctly (were re-encoded
